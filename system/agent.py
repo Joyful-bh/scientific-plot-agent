@@ -1,0 +1,131 @@
+"""
+C线核心：PlotAgent 主循环
+串联 model、tools、validator、merger，为 UI 层提供统一接口。
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+from model.generator import generate_spec
+from system.merger import fill_defaults, merge_delta
+from system.validator import validate
+from tools.loader import DataLoadError, load_data
+from tools.renderer import RenderError, render_plot
+
+
+@dataclass
+class AgentResponse:
+    """process_input() 的返回值结构。"""
+
+    status: str  # "ok" | "need_input" | "error"
+    image_path: str | None = None
+    question: str | None = None
+    message: str | None = None
+    current_spec: dict | None = None
+
+
+class PlotAgent:
+    """
+    Agent 主循环，管理多轮对话状态并协调各模块。
+
+    UI 层通过 load_data() 和 process_input() 与 Agent 交互，
+    不直接调用 model/ 或 tools/ 中的任何函数。
+    """
+
+    def __init__(self) -> None:
+        self.current_spec: dict | None = None
+        self.current_cache_key: str | None = None
+        self.data_context: str | None = None
+
+    def load_data(self, source: str) -> str:
+        """
+        加载数据文件，更新内部状态。
+
+        Args:
+            source: CSV 文件路径。
+
+        Returns:
+            DataContext 字符串（展示给用户确认）。
+
+        Raises:
+            DataLoadError: 文件不存在或格式错误时。
+        """
+        data_context, cache_key = load_data(source)
+        self.data_context = data_context
+        self.current_cache_key = cache_key
+        return data_context
+
+    def process_input(self, user_input: str) -> AgentResponse:
+        """
+        处理用户自然语言输入，驱动完整的绘图流水线。
+
+        流程：
+        1. 调用 generate_spec() 生成 spec 或 delta。
+        2. 若 current_spec 存在则 merge_delta，否则直接用新 spec。
+        3. fill_defaults() 填充 optional 默认值。
+        4. validate() 校验。
+        5. 校验不通过 → 返回 need_input + question。
+        6. 校验通过 → 调用 render_plot()。
+        7. 返回 ok + image_path。
+
+        Args:
+            user_input: 用户的自然语言描述。
+
+        Returns:
+            AgentResponse dataclass。
+        """
+        data_context = self.data_context or ""
+        data_source = self.current_cache_key or ""
+
+        try:
+            raw = generate_spec(user_input, data_context, self.current_spec)
+        except Exception as exc:
+            return AgentResponse(
+                status="error",
+                message=f"模型推理失败：{exc}",
+                current_spec=self.current_spec,
+            )
+
+        if self.current_spec is not None:
+            merged = merge_delta(self.current_spec, raw)
+        else:
+            merged = raw
+
+        full_spec = fill_defaults(merged)
+
+        result = validate(full_spec)
+        if not result.ok:
+            # 保留当前 spec 状态，等待用户补充信息后继续
+            self.current_spec = merged
+            return AgentResponse(
+                status="need_input",
+                question=result.prompt,
+                current_spec=merged,
+            )
+
+        self.current_spec = full_spec
+
+        # data_source 优先使用缓存键，若无则从 spec 中取
+        effective_source = data_source or full_spec.get("data_source", "")
+
+        try:
+            image_path = render_plot(full_spec, effective_source)
+        except (RenderError, Exception) as exc:
+            return AgentResponse(
+                status="error",
+                message=f"渲染失败：{exc}",
+                current_spec=full_spec,
+            )
+
+        return AgentResponse(
+            status="ok",
+            image_path=image_path,
+            current_spec=full_spec,
+        )
+
+    def reset(self) -> None:
+        """清空当前状态，开始新的绘图任务。"""
+        self.current_spec = None
+        self.current_cache_key = None
+        self.data_context = None
