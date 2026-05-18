@@ -48,25 +48,42 @@ OPTIONAL_DEFAULTS: dict = {
     "axes_y_max": None,
     "axes_x_tick_rotation": 0,
     "style_palette_override": None,
+    # bar 专属
     "params_orientation": "vertical",
     "params_stacked": False,
     "params_sort": None,
     "params_show_values": False,
+    "params_hatch": None,           # 柱子纹理，如 "/" "\\" "|" "-" "+" "x" "o" "." "*"；None=不使用
+    "params_edgecolor": None,       # 柱子/纹理边框颜色，如 "white"/"black"；None=matplotlib默认
+    "params_hatch_linewidth": 0.5,  # 纹理线宽；仅 params_hatch 不为 None 时生效
+    # line 专属
     "params_markers": True,
     "params_smooth": False,
+    "params_linestyle": "solid",    # 线型："solid"/"dashed"/"dotted"/"dashdot"；所有线统一
+    "params_line_colors": None,     # 按线顺序的颜色列表，如 ["#E64B35","#4DBBD5"]；None=使用主题配色
+    "params_marker_style": None,    # 标记样式，如 "o" "s" "^" "D" "v" "P" "*"；None=使用"o"
+    "params_marker_size": 4,        # 标记大小（点径）
+    # scatter 专属
     "params_alpha": 0.8,
     "params_show_regression": False,
+    # scatter/line 共享上方 params_marker_style / params_marker_size
+    # box 专属
     "params_show_points": "outliers",
     "params_notch": False,
+    # heatmap 专属
     "params_annot": True,
     "params_fmt": ".2f",
 }
 
 # 每种图表类型对应的有效 params 字段
 CHART_PARAMS: dict[str, list[str]] = {
-    "bar":     ["params_orientation", "params_stacked", "params_sort", "params_show_values"],
-    "line":    ["params_markers", "params_smooth"],
-    "scatter": ["params_alpha", "params_show_regression"],
+    "bar":     [
+        "params_orientation", "params_stacked", "params_sort", "params_show_values",
+        "params_hatch", "params_edgecolor", "params_hatch_linewidth",
+    ],
+    "line":    ["params_markers", "params_smooth", "params_linestyle", "params_line_colors",
+                "params_marker_style", "params_marker_size"],
+    "scatter": ["params_alpha", "params_show_regression", "params_marker_style", "params_marker_size"],
     "box":     ["params_show_points", "params_notch"],
     "heatmap": ["params_annot", "params_fmt"],
 }

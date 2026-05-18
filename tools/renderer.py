@@ -138,10 +138,37 @@ def _render_bar(df: pd.DataFrame, spec: dict, theme: ThemeConfig) -> plt.Figure:
     #   spec.get("label_y")              Y轴标签
     #   spec.get("axes_y_min/max")       Y轴范围，None=自动
     #   spec.get("axes_x_tick_rotation") X轴刻度旋转角度，默认 0
-    #   spec.get("params_orientation")   "vertical"（默认）或 "horizontal"
-    #   spec.get("params_stacked")       True=堆叠，默认 False
-    #   spec.get("params_sort")          "asc"/"desc"/None
-    #   spec.get("params_show_values")   True=柱顶标数值，默认 False
+    #   spec.get("params_orientation")      "vertical"（默认）或 "horizontal"
+    #   spec.get("params_stacked")          True=堆叠，默认 False
+    #   spec.get("params_sort")             "asc"/"desc"/None
+    #   spec.get("params_show_values")      True=柱顶标数值，默认 False
+    #   spec.get("params_hatch")            纹理字符串，如 "/" "\\" "|" "-" "+" "x"；None=不使用
+    #   spec.get("params_edgecolor")        柱子/纹理边框颜色，如 "white"；None=matplotlib默认
+    #   spec.get("params_hatch_linewidth")  纹理线宽，默认 0.5
+    #
+    # ── 纹理（hatch）的使用方式 ────────────────────────────────
+    #
+    #   import matplotlib as mpl
+    #   hatch      = spec.get("params_hatch")            # 如 "/"，None=不使用
+    #   edgecolor  = spec.get("params_edgecolor")        # 如 "white"
+    #   hatch_lw   = spec.get("params_hatch_linewidth", 0.5)
+    #
+    #   # hatch 线宽必须在绘图前通过全局 rcParams 设置（matplotlib 限制）
+    #   if hatch:
+    #       mpl.rcParams["hatch.linewidth"] = hatch_lw
+    #
+    #   # 传给 ax.bar() / sns.barplot()：
+    #   ax.bar(...,
+    #          hatch=hatch,                        # None = 不使用纹理
+    #          edgecolor=edgecolor or "none",      # None 时用 "none" 避免默认黑边
+    #         )
+    #
+    #   # seaborn barplot 不直接支持 hatch，需要事后给每个 Patch 设置：
+    #   sns.barplot(...)
+    #   for patch in ax.patches:
+    #       patch.set_hatch(hatch)
+    #       if edgecolor:
+    #           patch.set_edgecolor(edgecolor)
     #
     # ── 分支一：data_y 是字符串（单指标）─────────────────────────
     #
@@ -150,18 +177,24 @@ def _render_bar(df: pd.DataFrame, spec: dict, theme: ThemeConfig) -> plt.Figure:
     #   x_col, y_col = spec["data_x"], spec["data_y"]   # y_col 是字符串
     #   group_col = spec.get("data_group_by")
     #   err_col = spec.get("data_error")
+    #   hatch = spec.get("params_hatch")
+    #   edgecolor = spec.get("params_edgecolor")
+    #   if hatch:
+    #       mpl.rcParams["hatch.linewidth"] = spec.get("params_hatch_linewidth", 0.5)
     #
     #   if group_col:
-    #       # 有分组：按 group_col 列的值区分颜色（如 dataset: SST-2/MR/CoLA）
     #       palette = {g: c for g, c in zip(df[group_col].unique(), theme.palette)}
     #       sns.barplot(data=df, x=x_col, y=y_col, hue=group_col,
     #                   palette=palette, linewidth=theme.line_width, ax=ax)
+    #       for patch in ax.patches:       # 事后批量设置 hatch
+    #           patch.set_hatch(hatch)
+    #           if edgecolor: patch.set_edgecolor(edgecolor)
     #       ax.legend(frameon=theme.legend_frameon, fontsize=theme.legend_fontsize)
     #   else:
-    #       # 无分组：单色柱状图
     #       yerr = df[err_col] if err_col else None
     #       bars = ax.bar(df[x_col], df[y_col], yerr=yerr,
-    #                     color=theme.palette[0], linewidth=theme.line_width, capsize=3)
+    #                     color=theme.palette[0], linewidth=theme.line_width, capsize=3,
+    #                     hatch=hatch, edgecolor=edgecolor or "none")
     #       if spec.get("params_show_values"):
     #           for bar in bars:
     #               ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height(),
@@ -173,25 +206,20 @@ def _render_bar(df: pd.DataFrame, spec: dict, theme: ThemeConfig) -> plt.Figure:
     #   import seaborn as sns
     #   fig, ax = plt.subplots()
     #   x_col = spec["data_x"]
-    #   y_cols = spec["data_y"]   # y_cols 是列名列表，如 ["accuracy", "F1"]
+    #   y_cols = spec["data_y"]   # 列名列表，如 ["accuracy", "F1"]
     #
-    #   # 将宽表 melt 成长表，新增 "_metric" 列存放指标名
-    #   # 原始 CSV（宽表）：
-    #   #   method,    accuracy, F1
-    #   #   BERT-base, 93.5,     0.91
-    #   # melt 后（长表）：
-    #   #   method,    _metric,  _value
-    #   #   BERT-base, accuracy, 93.5
-    #   #   BERT-base, F1,       0.91
-    #   df_long = df.melt(
-    #       id_vars=[x_col],
-    #       value_vars=y_cols,
-    #       var_name="_metric",
-    #       value_name="_value",
-    #   )
+    #   df_long = df.melt(id_vars=[x_col], value_vars=y_cols,
+    #                     var_name="_metric", value_name="_value")
     #   palette = {m: c for m, c in zip(y_cols, theme.palette)}
     #   sns.barplot(data=df_long, x=x_col, y="_value", hue="_metric",
     #               palette=palette, linewidth=theme.line_width, ax=ax)
+    #   hatch = spec.get("params_hatch")
+    #   edgecolor = spec.get("params_edgecolor")
+    #   if hatch:
+    #       mpl.rcParams["hatch.linewidth"] = spec.get("params_hatch_linewidth", 0.5)
+    #       for patch in ax.patches:
+    #           patch.set_hatch(hatch)
+    #           if edgecolor: patch.set_edgecolor(edgecolor)
     #   ax.legend(frameon=theme.legend_frameon, fontsize=theme.legend_fontsize)
     #
     # ── 判断分支的写法 ───────────────────────────────────────────
@@ -226,38 +254,70 @@ def _render_line(df: pd.DataFrame, spec: dict, theme: ThemeConfig) -> plt.Figure
     # ============================================================
     #
     # 需要读取的 spec 字段：
-    #   spec["data_x"]                 X轴列名（字符串），如 "step"
-    #   spec["data_y"]                 Y轴列名，可以是：
-    #                                    - 字符串：单条线，如 "val_loss"
-    #                                    - 字符串列表：多条线，如 ["train_loss", "val_loss"]
-    #   spec.get("data_group_by")      分组列名；data_y 是列表时忽略此字段
-    #   spec.get("data_error")         误差带列名；None=不画置信区间
-    #   spec.get("label_title/x/y")   标签
-    #   spec.get("axes_y_min/max")     轴范围
-    #   spec.get("params_markers")     True=画数据点标记，默认 True
-    #   spec.get("params_smooth")      True=做平滑处理
+    #   spec["data_x"]                      X轴列名（字符串），如 "step"
+    #   spec["data_y"]                      Y轴列名，可以是：
+    #                                         - 字符串：单条线，如 "val_loss"
+    #                                         - 字符串列表：多条线，如 ["train_loss", "val_loss"]
+    #   spec.get("data_group_by")           分组列名；data_y 是列表时忽略此字段
+    #   spec.get("data_error")              误差带列名；None=不画置信区间
+    #   spec.get("label_title/x/y")         标签
+    #   spec.get("axes_y_min/max")          轴范围
+    #   spec.get("params_markers")          True=画数据点标记，默认 True；False=纯折线
+    #   spec.get("params_smooth")           True=做平滑处理（可用 scipy.interpolate）
+    #   spec.get("params_linestyle")        线型："solid"/"dashed"/"dotted"/"dashdot"
+    #                                       所有线统一，默认 "solid"
+    #   spec.get("params_line_colors")      颜色列表，如 ["#E64B35","#4DBBD5"]
+    #                                       按线顺序覆盖 theme.palette；None=使用主题配色
+    #   spec.get("params_marker_style")     标记样式，如 "o" "s" "^" "D" "v" "P" "*"
+    #                                       None 时默认 "o"；params_markers=False 时忽略
+    #   spec.get("params_marker_size", 4)   标记大小（点径，非面积）
+    #
+    # ── 线型与颜色的使用方式 ─────────────────────────────────────
+    #
+    #   linestyle   = spec.get("params_linestyle", "solid")
+    #   line_colors = spec.get("params_line_colors")       # None 或 list[str]
+    #   palette     = line_colors if line_colors else theme.palette
+    #
+    #   # matplotlib linestyle 值与 ax.plot 的 linestyle 参数直接对应：
+    #   # "solid" → "-"，"dashed" → "--"，"dotted" → ":"，"dashdot" → "-."
+    #   # 也可以直接传 "solid"/"dashed" 等字符串，matplotlib 同样接受
+    #
+    #   ax.plot(..., linestyle=linestyle, color=palette[i % len(palette)])
+    #
+    # ── 标记样式的使用方式 ───────────────────────────────────────
+    #
+    #   use_markers = spec.get("params_markers", True)
+    #   marker      = (spec.get("params_marker_style") or "o") if use_markers else None
+    #   msize       = spec.get("params_marker_size", 4)   # ax.plot 的 markersize 是点径
     #
     # ── 分支一：data_y 是字符串（单条线）───────────────────────
     #
     #   fig, ax = plt.subplots()
     #   x_col, y_col = spec["data_x"], spec["data_y"]
-    #   marker = "o" if spec.get("params_markers", True) else None
-    #   group_col = spec.get("data_group_by")
+    #   linestyle   = spec.get("params_linestyle", "solid")
+    #   line_colors = spec.get("params_line_colors")
+    #   palette     = line_colors if line_colors else theme.palette
+    #   use_markers = spec.get("params_markers", True)
+    #   marker      = (spec.get("params_marker_style") or "o") if use_markers else None
+    #   msize       = spec.get("params_marker_size", 4)
+    #   group_col   = spec.get("data_group_by")
     #
     #   if group_col:
     #       for i, (gval, gdf) in enumerate(df.groupby(group_col)):
-    #           color = theme.palette[i % len(theme.palette)]
+    #           color = palette[i % len(palette)]
     #           ax.plot(gdf[x_col], gdf[y_col], label=str(gval), color=color,
-    #                   linewidth=theme.line_width, marker=marker, markersize=3)
+    #                   linestyle=linestyle, linewidth=theme.line_width,
+    #                   marker=marker, markersize=msize)
     #       ax.legend(frameon=theme.legend_frameon, fontsize=theme.legend_fontsize)
     #   else:
     #       err_col = spec.get("data_error")
-    #       ax.plot(df[x_col], df[y_col], color=theme.palette[0],
-    #               linewidth=theme.line_width, marker=marker, markersize=3)
+    #       ax.plot(df[x_col], df[y_col], color=palette[0],
+    #               linestyle=linestyle, linewidth=theme.line_width,
+    #               marker=marker, markersize=msize)
     #       if err_col:
     #           ax.fill_between(df[x_col],
     #                           df[y_col] - df[err_col], df[y_col] + df[err_col],
-    #                           alpha=0.2, color=theme.palette[0])
+    #                           alpha=0.2, color=palette[0])
     #
     # ── 分支二：data_y 是字符串列表（多条线）────────────────────
     #
@@ -267,12 +327,18 @@ def _render_line(df: pd.DataFrame, spec: dict, theme: ThemeConfig) -> plt.Figure
     #   fig, ax = plt.subplots()
     #   x_col  = spec["data_x"]
     #   y_cols = spec["data_y"]   # 列名列表
-    #   marker = "o" if spec.get("params_markers", True) else None
+    #   linestyle   = spec.get("params_linestyle", "solid")
+    #   line_colors = spec.get("params_line_colors")
+    #   palette     = line_colors if line_colors else theme.palette
+    #   use_markers = spec.get("params_markers", True)
+    #   marker      = (spec.get("params_marker_style") or "o") if use_markers else None
+    #   msize       = spec.get("params_marker_size", 4)
     #
     #   for i, y_col in enumerate(y_cols):
-    #       color = theme.palette[i % len(theme.palette)]
+    #       color = palette[i % len(palette)]
     #       ax.plot(df[x_col], df[y_col], label=y_col, color=color,
-    #               linewidth=theme.line_width, marker=marker, markersize=3)
+    #               linestyle=linestyle, linewidth=theme.line_width,
+    #               marker=marker, markersize=msize)
     #   ax.legend(frameon=theme.legend_frameon, fontsize=theme.legend_fontsize)
     #
     # ── 判断分支的写法 ───────────────────────────────────────────
@@ -312,18 +378,35 @@ def _render_scatter(df: pd.DataFrame, spec: dict, theme: ThemeConfig) -> plt.Fig
     #   spec.get("label_title/x/y")         标签
     #   spec.get("params_alpha", 0.8)       点透明度
     #   spec.get("params_show_regression")  True=叠加线性回归线
+    #   spec.get("params_marker_style")     标记样式，如 "o" "s" "^" "D" "v" "P" "*"
+    #                                       None 时使用 matplotlib 默认（"o"）
+    #   spec.get("params_marker_size", 4)   标记大小（点径）
+    #
+    # ── 标记样式的使用方式 ───────────────────────────────────────
+    #
+    #   marker = spec.get("params_marker_style") or "o"   # None → 默认 "o"
+    #   msize  = spec.get("params_marker_size", 4)
+    #
+    #   # ax.scatter 用 marker 和 s（面积，约为点径的平方）参数
+    #   ax.scatter(df[x_col], df[y_col],
+    #              marker=marker,
+    #              s=msize ** 2,       # scatter 的 s 是面积，转换一下
+    #              alpha=spec.get("params_alpha", 0.8),
+    #              color=theme.palette[0],
+    #              linewidths=theme.line_width)
     #
     # ── 无分组最简实现 ──────────────────────────────────────────
     #
     #   fig, ax = plt.subplots()
     #   x_col, y_col = spec["data_x"], spec["data_y"]
+    #   marker = spec.get("params_marker_style") or "o"
+    #   msize  = spec.get("params_marker_size", 4)
     #
-    #   ax.scatter(
-    #       df[x_col], df[y_col],
-    #       alpha=spec.get("params_alpha", 0.8),
-    #       color=theme.palette[0], s=20,
-    #       linewidths=theme.line_width,
-    #   )
+    #   ax.scatter(df[x_col], df[y_col],
+    #              marker=marker, s=msize ** 2,
+    #              alpha=spec.get("params_alpha", 0.8),
+    #              color=theme.palette[0],
+    #              linewidths=theme.line_width)
     #
     #   if spec.get("params_show_regression"):
     #       import numpy as np
