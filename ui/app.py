@@ -56,6 +56,21 @@ def on_submit(user_input: str) -> tuple[str | None, str, str]:
     else:
         return None, f"[错误] {response.message}", spec_text
 
+    # ── C线扩展提示：发送后清空输入框 ─────────────────────────────
+    # 在 submit_btn.click 的 outputs 列表末尾加上 user_input 组件，
+    # 并在此函数的返回值元组末尾追加 ""，即可在每次发送后自动清空：
+    #
+    #   submit_btn.click(
+    #       fn=on_submit,
+    #       inputs=[user_input],
+    #       outputs=[image_output, status_box, spec_display, user_input],  # 追加
+    #   )
+    #
+    #   def on_submit(...) -> tuple[...]:
+    #       ...
+    #       return ..., ""   # 追加空字符串清空输入框
+    # ──────────────────────────────────────────────────────────────
+
 
 def on_reset() -> tuple[None, str, str, str]:
     """重置按钮回调，清空所有状态。"""
@@ -120,6 +135,19 @@ with gr.Blocks(title="Scientific Plot Agent") as demo:
         )
 
     with gr.Row():
+        # ── C线扩展提示：导出按钮绑定实际文件路径 ─────────────────
+        # 当前 export_btn 未绑定事件，点击无效。
+        # 需要用一个 gr.State 存储最新的 image_path，再绑定 DownloadButton：
+        #
+        #   current_image = gr.State(value=None)   # 在 gr.Blocks 内模块级声明
+        #
+        #   # on_submit 返回 image_path 时同步更新 State：
+        #   submit_btn.click(fn=on_submit, ..., outputs=[image_output, status_box, spec_display, current_image])
+        #
+        #   # DownloadButton 通过 value 参数绑定文件路径：
+        #   export_btn = gr.DownloadButton(label="导出 PNG", value=lambda: current_image.value)
+        #   # 或者用 .click 事件触发一个返回文件路径的函数
+        # ──────────────────────────────────────────────────────────
         export_btn = gr.DownloadButton(label="导出 PNG", visible=True)
         reset_btn = gr.Button("重置", variant="secondary")
 

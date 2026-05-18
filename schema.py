@@ -4,12 +4,25 @@
 """
 
 # 图表类型
+# 新增图表类型时：
+#   1. 在此列表末尾追加新类型名（字符串）
+#   2. 在下方 OPTIONAL_DEFAULTS 添加该类型专属的 params_xxx 字段（若有）
+#   3. 在下方 CHART_PARAMS 添加该类型使用的参数字段列表
+#   4. 在 tools/renderer.py 实现 _render_xxx() 并注册到 RENDERERS 字典
+#   validator.py 自动感知此列表，无需修改
 CHART_TYPES: list[str] = ["bar", "line", "scatter", "box", "heatmap"]
 
 # 风格主题（排版 + 配色 + 图幅的完整配置）
+# 新增主题时：
+#   1. 在此列表末尾追加新主题名（字符串）
+#   2. 在 tools/themes.py 的 THEMES 字典里添加对应的 ThemeConfig 实例
+#   validator.py 自动感知此列表，无需修改
 STYLE_THEMES: list[str] = ["nature", "ieee", "neurips", "clean", "morandi"]
 
 # 配色覆盖（仅用户明确要求时使用，覆盖 theme 默认配色）
+# 新增配色时：
+#   1. 在此列表末尾追加新名称
+#   2. 在 tools/themes.py 的 PALETTES 字典里添加对应的颜色列表（或 cmap 字符串）
 PALETTE_OVERRIDES: list[str] = ["morandi", "nature_d", "tab10", "coolwarm"]
 
 # Required 字段：缺失时系统必须回问用户，不能继续渲染

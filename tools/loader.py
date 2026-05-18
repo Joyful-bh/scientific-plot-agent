@@ -85,7 +85,26 @@ def _infer_column_type(series: pd.Series) -> str:
 
 
 def _build_context(df: pd.DataFrame, cache_key: str) -> str:
-    """构建可读的 DataContext 摘要字符串。"""
+    """
+    构建可读的 DataContext 摘要字符串。
+
+    ⚠️  B线若修改此函数的输出格式，必须提前告知 A线。
+    A线的微调训练数据（instruction 字段）使用与此处完全相同的格式。
+    两者格式不一致会导致推理时模型无法正确理解数据摘要。
+
+    当前输出格式示例（以 example_bar.csv 为例）：
+
+        数据摘要：
+        - 形状：24行 × 4列
+        - 列信息：
+          · method（类别型，唯一值6个）：BERT-base, RoBERTa-base, XLNet-base, ALBERT-base
+          · accuracy（数值型，范围55.1~95.1）
+          · std（数值型，范围0.3~1.1）
+        - 前2行预览：[["BERT-base","SST-2",93.5,0.3],["BERT-base","MR",87.3,0.4]]
+        - 缓存key：cache://a1b2c3d4
+
+    验证方式：python -c "from tools.loader import load_data; ctx,_ = load_data('data/example_bar.csv'); print(ctx)"
+    """
     rows, cols = df.shape
     lines: list[str] = [
         "数据摘要：",

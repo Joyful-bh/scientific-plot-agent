@@ -75,6 +75,20 @@ class PlotAgent:
         Returns:
             AgentResponse dataclass。
         """
+        # ── C线扩展提示 ────────────────────────────────────────────
+        # 可在此处添加前置守卫，提升用户体验，例如：
+        #
+        # 1. 未加载数据时给出友好提示（而非让模型对空 data_context 乱猜）：
+        #    if not self.current_cache_key:
+        #        return AgentResponse(
+        #            status="need_input",
+        #            question="请先上传数据文件，我才能帮你绘图。",
+        #        )
+        #
+        # 2. 空输入检查（UI 层已有，但 agent 层双重保障更健壮）：
+        #    if not user_input.strip():
+        #        return AgentResponse(status="need_input", question="请输入绘图需求。")
+        # ──────────────────────────────────────────────────────────
         data_context = self.data_context or ""
         data_source = self.current_cache_key or ""
 
