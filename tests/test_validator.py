@@ -45,21 +45,54 @@ def test_missing_multiple_required():
 
 
 def test_data_x_is_list():
-    """data_x 传入列表时 ok=False，type_errors 非空。"""
+    """data_x 传入列表时 ok=False（X轴只能单列）。"""
     spec = dict(VALID_SPEC)
-    spec["data_x"] = ["SST-2", "MR", "CR"]
+    spec["data_x"] = ["method", "dataset"]
     result = validate(spec)
     assert result.ok is False
     assert len(result.type_errors) > 0
 
 
-def test_data_y_is_list():
-    """data_y 传入列表时 ok=False，type_errors 包含相应说明。"""
+def test_data_y_numeric_list_invalid():
+    """data_y 传入数值列表时 ok=False（数值列表是模型已知失败模式）。"""
     spec = dict(VALID_SPEC)
     spec["data_y"] = [93.5, 94.8, 91.0]
     result = validate(spec)
     assert result.ok is False
     assert any("data_y" in e for e in result.type_errors)
+
+
+def test_data_y_mixed_list_invalid():
+    """data_y 传入字符串+数值混合列表时 ok=False。"""
+    spec = dict(VALID_SPEC)
+    spec["data_y"] = ["accuracy", 93.5]
+    result = validate(spec)
+    assert result.ok is False
+    assert any("data_y" in e for e in result.type_errors)
+
+
+def test_data_y_string_list_valid():
+    """data_y 传入字符串列表（多列名）时 ok=True，这是多指标对比的合法写法。"""
+    spec = dict(VALID_SPEC)
+    spec["data_y"] = ["accuracy", "F1"]
+    result = validate(spec)
+    assert result.ok is True, f"字符串列名列表应通过校验，实际错误：{result.type_errors}"
+
+
+def test_data_y_single_element_string_list_valid():
+    """data_y 传入单元素字符串列表时 ok=True。"""
+    spec = dict(VALID_SPEC)
+    spec["data_y"] = ["accuracy"]
+    result = validate(spec)
+    assert result.ok is True
+
+
+def test_data_y_empty_list_invalid():
+    """data_y 传入空列表时 ok=False。"""
+    spec = dict(VALID_SPEC)
+    spec["data_y"] = []
+    result = validate(spec)
+    assert result.ok is False
 
 
 def test_invalid_chart_type():

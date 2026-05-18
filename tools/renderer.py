@@ -125,9 +125,13 @@ def _render_bar(df: pd.DataFrame, spec: dict, theme: ThemeConfig) -> plt.Figure:
     # ============================================================
     #
     # 需要读取的 spec 字段：
-    #   spec["data_x"]                   X轴列名，如 "method"
-    #   spec["data_y"]                   Y轴列名，如 "accuracy"
+    #   spec["data_x"]                   X轴列名（字符串），如 "method"
+    #   spec["data_y"]                   Y轴列名，可以是：
+    #                                      - 字符串：单指标，如 "accuracy"
+    #                                      - 字符串列表：多指标对比，如 ["accuracy", "F1"]
     #   spec.get("data_group_by")        分组列名，如 "dataset"；None=不分组
+    #                                    ⚠️ data_y 是列表时 data_group_by 会被忽略
+    #                                       （指标名本身就充当了分组依据）
     #   spec.get("data_error")           误差棒列名，如 "std"；None=不画误差棒
     #   spec.get("label_title")          图标题
     #   spec.get("label_x")              X轴标签
@@ -139,49 +143,66 @@ def _render_bar(df: pd.DataFrame, spec: dict, theme: ThemeConfig) -> plt.Figure:
     #   spec.get("params_sort")          "asc"/"desc"/None
     #   spec.get("params_show_values")   True=柱顶标数值，默认 False
     #
-    # ── 无分组最简实现 ──────────────────────────────────────────
+    # ── 分支一：data_y 是字符串（单指标）─────────────────────────
     #
+    #   import seaborn as sns
     #   fig, ax = plt.subplots()
-    #   x_col, y_col = spec["data_x"], spec["data_y"]
+    #   x_col, y_col = spec["data_x"], spec["data_y"]   # y_col 是字符串
+    #   group_col = spec.get("data_group_by")
     #   err_col = spec.get("data_error")
     #
-    #   if spec.get("params_sort") == "asc":
-    #       df = df.sort_values(y_col)
-    #   elif spec.get("params_sort") == "desc":
-    #       df = df.sort_values(y_col, ascending=False)
-    #
-    #   bars = ax.bar(
-    #       df[x_col], df[y_col],
-    #       yerr=df[err_col] if err_col else None,
-    #       color=theme.palette[0],
-    #       linewidth=theme.line_width,
-    #       capsize=3,
-    #       error_kw={"linewidth": theme.line_width},
-    #   )
-    #
-    #   if spec.get("params_show_values"):
-    #       for bar in bars:
-    #           ax.text(
-    #               bar.get_x() + bar.get_width() / 2,
-    #               bar.get_height(),
-    #               f"{bar.get_height():.1f}",
-    #               ha="center", va="bottom",
-    #               fontsize=theme.font_size,
-    #           )
-    #
-    # ── 有分组时推荐 seaborn ─────────────────────────────────────
-    #
-    #   group_col = spec.get("data_group_by")
     #   if group_col:
-    #       import seaborn as sns
+    #       # 有分组：按 group_col 列的值区分颜色（如 dataset: SST-2/MR/CoLA）
     #       palette = {g: c for g, c in zip(df[group_col].unique(), theme.palette)}
-    #       sns.barplot(
-    #           data=df, x=x_col, y=y_col, hue=group_col,
-    #           palette=palette,
-    #           linewidth=theme.line_width,
-    #           ax=ax,
-    #       )
+    #       sns.barplot(data=df, x=x_col, y=y_col, hue=group_col,
+    #                   palette=palette, linewidth=theme.line_width, ax=ax)
     #       ax.legend(frameon=theme.legend_frameon, fontsize=theme.legend_fontsize)
+    #   else:
+    #       # 无分组：单色柱状图
+    #       yerr = df[err_col] if err_col else None
+    #       bars = ax.bar(df[x_col], df[y_col], yerr=yerr,
+    #                     color=theme.palette[0], linewidth=theme.line_width, capsize=3)
+    #       if spec.get("params_show_values"):
+    #           for bar in bars:
+    #               ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height(),
+    #                       f"{bar.get_height():.1f}", ha="center", va="bottom",
+    #                       fontsize=theme.font_size)
+    #
+    # ── 分支二：data_y 是字符串列表（多指标对比）────────────────
+    #
+    #   import seaborn as sns
+    #   fig, ax = plt.subplots()
+    #   x_col = spec["data_x"]
+    #   y_cols = spec["data_y"]   # y_cols 是列名列表，如 ["accuracy", "F1"]
+    #
+    #   # 将宽表 melt 成长表，新增 "_metric" 列存放指标名
+    #   # 原始 CSV（宽表）：
+    #   #   method,    accuracy, F1
+    #   #   BERT-base, 93.5,     0.91
+    #   # melt 后（长表）：
+    #   #   method,    _metric,  _value
+    #   #   BERT-base, accuracy, 93.5
+    #   #   BERT-base, F1,       0.91
+    #   df_long = df.melt(
+    #       id_vars=[x_col],
+    #       value_vars=y_cols,
+    #       var_name="_metric",
+    #       value_name="_value",
+    #   )
+    #   palette = {m: c for m, c in zip(y_cols, theme.palette)}
+    #   sns.barplot(data=df_long, x=x_col, y="_value", hue="_metric",
+    #               palette=palette, linewidth=theme.line_width, ax=ax)
+    #   ax.legend(frameon=theme.legend_frameon, fontsize=theme.legend_fontsize)
+    #
+    # ── 判断分支的写法 ───────────────────────────────────────────
+    #
+    #   y_col = spec["data_y"]
+    #   if isinstance(y_col, list):
+    #       # 走分支二
+    #       ...
+    #   else:
+    #       # 走分支一
+    #       ...
     #
     # ── 通用收尾（所有分支都要执行）────────────────────────────
     #
@@ -205,49 +226,64 @@ def _render_line(df: pd.DataFrame, spec: dict, theme: ThemeConfig) -> plt.Figure
     # ============================================================
     #
     # 需要读取的 spec 字段：
-    #   spec["data_x"]                 X轴列名，如 "step"
-    #   spec["data_y"]                 Y轴列名，如 "val_loss"
-    #   spec.get("data_group_by")      分组列名；None=画单条线
+    #   spec["data_x"]                 X轴列名（字符串），如 "step"
+    #   spec["data_y"]                 Y轴列名，可以是：
+    #                                    - 字符串：单条线，如 "val_loss"
+    #                                    - 字符串列表：多条线，如 ["train_loss", "val_loss"]
+    #   spec.get("data_group_by")      分组列名；data_y 是列表时忽略此字段
     #   spec.get("data_error")         误差带列名；None=不画置信区间
     #   spec.get("label_title/x/y")   标签
     #   spec.get("axes_y_min/max")     轴范围
     #   spec.get("params_markers")     True=画数据点标记，默认 True
     #   spec.get("params_smooth")      True=做平滑处理
     #
-    # ── 无分组最简实现 ──────────────────────────────────────────
+    # ── 分支一：data_y 是字符串（单条线）───────────────────────
     #
     #   fig, ax = plt.subplots()
     #   x_col, y_col = spec["data_x"], spec["data_y"]
     #   marker = "o" if spec.get("params_markers", True) else None
-    #
-    #   ax.plot(
-    #       df[x_col], df[y_col],
-    #       marker=marker, markersize=3,
-    #       linewidth=theme.line_width,
-    #       color=theme.palette[0],
-    #   )
-    #
-    #   # 误差带（data_error 列作为上下浮动宽度）
-    #   err_col = spec.get("data_error")
-    #   if err_col:
-    #       ax.fill_between(
-    #           df[x_col],
-    #           df[y_col] - df[err_col],
-    #           df[y_col] + df[err_col],
-    #           alpha=0.2, color=theme.palette[0],
-    #       )
-    #
-    # ── 有分组时按组循环 ─────────────────────────────────────────
-    #
     #   group_col = spec.get("data_group_by")
+    #
     #   if group_col:
     #       for i, (gval, gdf) in enumerate(df.groupby(group_col)):
     #           color = theme.palette[i % len(theme.palette)]
-    #           ax.plot(gdf[x_col], gdf[y_col],
-    #                   label=str(gval), color=color,
-    #                   linewidth=theme.line_width,
-    #                   marker=marker, markersize=3)
+    #           ax.plot(gdf[x_col], gdf[y_col], label=str(gval), color=color,
+    #                   linewidth=theme.line_width, marker=marker, markersize=3)
     #       ax.legend(frameon=theme.legend_frameon, fontsize=theme.legend_fontsize)
+    #   else:
+    #       err_col = spec.get("data_error")
+    #       ax.plot(df[x_col], df[y_col], color=theme.palette[0],
+    #               linewidth=theme.line_width, marker=marker, markersize=3)
+    #       if err_col:
+    #           ax.fill_between(df[x_col],
+    #                           df[y_col] - df[err_col], df[y_col] + df[err_col],
+    #                           alpha=0.2, color=theme.palette[0])
+    #
+    # ── 分支二：data_y 是字符串列表（多条线）────────────────────
+    #
+    #   # 每个列名对应一条独立的折线，直接循环绘制，无需 melt
+    #   # 例：data_y = ["train_loss", "val_loss"]，example_line.csv 正好有这两列
+    #
+    #   fig, ax = plt.subplots()
+    #   x_col  = spec["data_x"]
+    #   y_cols = spec["data_y"]   # 列名列表
+    #   marker = "o" if spec.get("params_markers", True) else None
+    #
+    #   for i, y_col in enumerate(y_cols):
+    #       color = theme.palette[i % len(theme.palette)]
+    #       ax.plot(df[x_col], df[y_col], label=y_col, color=color,
+    #               linewidth=theme.line_width, marker=marker, markersize=3)
+    #   ax.legend(frameon=theme.legend_frameon, fontsize=theme.legend_fontsize)
+    #
+    # ── 判断分支的写法 ───────────────────────────────────────────
+    #
+    #   y_col = spec["data_y"]
+    #   if isinstance(y_col, list):
+    #       # 走分支二
+    #       ...
+    #   else:
+    #       # 走分支一
+    #       ...
     #
     # ── 通用收尾 ─────────────────────────────────────────────────
     #

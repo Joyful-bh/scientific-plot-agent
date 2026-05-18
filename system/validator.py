@@ -66,16 +66,29 @@ def validate(spec: dict) -> ValidationResult:
             f"style_theme='{style_theme}' 不合法，合法值：{STYLE_THEMES}"
         )
 
-    # 规则 4：data_x / data_y 必须是字符串，不能是 list
-    for key in ("data_x", "data_y"):
-        val = spec.get(key)
-        if val is not None and isinstance(val, list):
-            errors.append(
-                f"{key}应为列名字符串，不是值列表"
-                "（模型可能将列的值填入了该字段，请检查 PlotSpec）"
-            )
-        elif val is not None and not isinstance(val, str):
-            errors.append(f"{key} 应为字符串列名，收到类型：{type(val).__name__}")
+    # 规则 4a：data_x 必须是字符串（X轴只能指定单列）
+    val_x = spec.get("data_x")
+    if val_x is not None:
+        if isinstance(val_x, list):
+            errors.append("data_x 应为单个列名字符串，X轴只能指定一列，不能是列表")
+        elif not isinstance(val_x, str):
+            errors.append(f"data_x 应为字符串列名，收到类型：{type(val_x).__name__}")
+
+    # 规则 4b：data_y 可以是字符串（单列）或字符串列表（多列对比），但不能是数值列表
+    # 合法：data_y = "accuracy"  或  data_y = ["accuracy", "F1"]
+    # 非法：data_y = [93.5, 94.8]  或  data_y = ["accuracy", 93.5]
+    val_y = spec.get("data_y")
+    if val_y is not None:
+        if isinstance(val_y, list):
+            if len(val_y) == 0:
+                errors.append("data_y 列表不能为空")
+            elif not all(isinstance(item, str) for item in val_y):
+                errors.append(
+                    "data_y 如果是列表，每个元素必须是列名字符串，不能包含数值"
+                    "（模型可能将列的值填入了该字段，请检查 PlotSpec）"
+                )
+        elif not isinstance(val_y, str):
+            errors.append(f"data_y 应为字符串列名或字符串列表，收到类型：{type(val_y).__name__}")
 
     # 规则 5：axes_y_min < axes_y_max
     y_min = spec.get("axes_y_min")
