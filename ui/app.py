@@ -126,11 +126,11 @@ with gr.Blocks(title="Scientific Plot Agent") as demo:
                 lines=3,
             )
 
-    # 底部：PlotSpec 调试 + 操作按钮
+    # 底部：PlotSpec 展示 + 操作按钮
     with gr.Row():
-        spec_display = gr.Textbox(
-            label="当前 PlotSpec（调试）",
-            lines=12,
+        spec_display = gr.Code(
+            label="当前 PlotSpec",
+            language="json",
             interactive=False,
         )
 

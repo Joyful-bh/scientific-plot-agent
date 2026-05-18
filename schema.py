@@ -17,7 +17,7 @@ CHART_TYPES: list[str] = ["bar", "line", "scatter", "box", "heatmap"]
 #   1. 在此列表末尾追加新主题名（字符串）
 #   2. 在 tools/themes.py 的 THEMES 字典里添加对应的 ThemeConfig 实例
 #   validator.py 自动感知此列表，无需修改
-STYLE_THEMES: list[str] = ["nature", "ieee", "neurips", "clean", "morandi"]
+STYLE_THEMES: list[str] = ["clean", "vivid", "nature", "ieee", "morandi", "dark"]
 
 # 配色覆盖（仅用户明确要求时使用，覆盖 theme 默认配色）
 # 新增配色时：

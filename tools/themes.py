@@ -28,6 +28,8 @@ class ThemeConfig:
     legend_frameon: bool
     legend_fontsize: int
     palette: list[str]
+    bg_color: str = "white"    # 背景色；dark 主题使用深色
+    text_color: str = "black"  # 文字/刻度/轴脊颜色；dark 主题使用浅色
 
 
 def _tab10_colors() -> list[str]:
@@ -72,19 +74,19 @@ THEMES: dict[str, ThemeConfig] = {
         legend_fontsize=7,
         palette=["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2"],
     ),
-    "neurips": ThemeConfig(
-        font_family="Times New Roman",
-        font_size=9,
-        line_width=0.8,
-        figure_width=5.5,
-        figure_height=3.5,
-        dpi=300,
+    "vivid": ThemeConfig(
+        font_family="DejaVu Sans",
+        font_size=10,
+        line_width=1.5,
+        figure_width=6.0,
+        figure_height=4.0,
+        dpi=150,
         spines=["left", "bottom"],
-        grid=False,
+        grid=True,
         grid_style="--",
         legend_frameon=True,
-        legend_fontsize=8,
-        palette=["#377eb8", "#e41a1c", "#4daf4a", "#984ea3", "#ff7f00", "#a65628", "#f781bf"],
+        legend_fontsize=9,
+        palette=["#E63946", "#2196F3", "#4CAF50", "#FF9800", "#9C27B0", "#00BCD4", "#FF5722"],
     ),
     "morandi": ThemeConfig(
         font_family="Arial",
@@ -112,7 +114,23 @@ THEMES: dict[str, ThemeConfig] = {
         grid_style="--",
         legend_frameon=True,
         legend_fontsize=9,
-        palette=["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2"],
+        palette=["#5C85A4", "#A4785C", "#7AA45C", "#A45C7A", "#7C5CA4", "#5CA48C", "#A4A45C"],
+    ),
+    "dark": ThemeConfig(
+        font_family="DejaVu Sans",
+        font_size=11,
+        line_width=1.5,
+        figure_width=7.0,
+        figure_height=4.5,
+        dpi=150,
+        spines=["left", "bottom"],
+        grid=True,
+        grid_style="--",
+        legend_frameon=True,
+        legend_fontsize=10,
+        palette=["#61DAFB", "#F7B731", "#A3E635", "#FB7185", "#C084FC", "#34D399", "#F97316"],
+        bg_color="#1e1e2e",
+        text_color="#cdd6f4",
     ),
 }
 
@@ -170,4 +188,6 @@ def apply_theme(
         legend_frameon=base.legend_frameon,
         legend_fontsize=base.legend_fontsize,
         palette=new_palette,
+        bg_color=base.bg_color,
+        text_color=base.text_color,
     )

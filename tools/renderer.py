@@ -110,6 +110,16 @@ def _apply_theme_to_fig(fig: plt.Figure, ax: plt.Axes, theme: ThemeConfig) -> No
     #    ax.tick_params(direction="in", width=theme.line_width,
     #                   labelsize=theme.font_size)
     #
+    # 6. 背景色与文字色（dark 主题时非白底，需整体设置）
+    #    fig.patch.set_facecolor(theme.bg_color)
+    #    ax.set_facecolor(theme.bg_color)
+    #    if theme.bg_color != "white":
+    #        for item in [ax.title, ax.xaxis.label, ax.yaxis.label]:
+    #            item.set_color(theme.text_color)
+    #        ax.tick_params(colors=theme.text_color)
+    #        for spine in ax.spines.values():
+    #            spine.set_edgecolor(theme.text_color)
+    #
     # ============================================================
     raise NotImplementedError
 
