@@ -52,7 +52,7 @@ OPTIONAL_DEFAULTS: dict = {
     "style_grid": None,
     "style_line_width": None,
     "style_font_size": None,
-    "style_hatch": None,            # 柱子纹理，如 "/" "\\" "|" "-" "+" "x"；None=不使用；仅 bar 图生效
+    "style_hatch": None,            # 柱子纹理：单个字符串如 "/" 或列表如 ["/" "\\"]（多分组轮换）；None=不使用；仅 bar 图生效
     "style_edgecolor": None,        # 柱子/纹理边框颜色，如 "white"/"black"；None=matplotlib默认；仅 bar 图生效
     "style_hatch_linewidth": None,  # 纹理线宽（None=用主题默认 0.5）；仅 style_hatch 不为 None 时生效
     "style_dpi": None,
@@ -75,7 +75,7 @@ OPTIONAL_DEFAULTS: dict = {
     "params_linestyle": "solid",    # 线型："solid"/"dashed"/"dotted"/"dashdot"；所有线统一
     "params_line_colors": None,     # 按线顺序的颜色列表，如 ["#E64B35","#4DBBD5"]；None=使用主题配色
     "params_marker_style": None,    # 标记样式，如 "o" "s" "^" "D" "v" "P" "*"；None=使用"o"
-    "params_marker_size": 4,        # 标记大小（点径）
+    # params_marker_size 无默认值：None 时 LayoutEngine 按数据密度自动计算
     # scatter 专属
     "params_alpha": 0.8,
     "params_show_regression": False,
@@ -86,6 +86,7 @@ OPTIONAL_DEFAULTS: dict = {
     # heatmap 专属
     "params_annot": True,
     "params_annot_fmt": ".2f",
+    "params_heatmap_value": None,   # 热力值列名；None=自动取第一个非轴数值列
 }
 
 # 每种图表类型对应的有效 params 字段
@@ -95,5 +96,5 @@ CHART_PARAMS: dict[str, list[str]] = {
                 "params_marker_style", "params_marker_size"],
     "scatter": ["params_alpha", "params_show_regression", "params_marker_style", "params_marker_size"],
     "box":     ["params_show_points", "params_notch"],
-    "heatmap": ["params_annot", "params_annot_fmt"],
+    "heatmap": ["params_annot", "params_annot_fmt", "params_heatmap_value"],
 }

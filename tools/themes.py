@@ -30,7 +30,7 @@ class ThemeConfig:
     palette: list[str]
     bg_color: str = "white"         # 背景色；dark 主题使用深色
     text_color: str = "black"       # 文字/刻度/轴脊颜色；dark 主题使用浅色
-    hatch: str | None = None        # 柱子纹理（None=不使用）；仅 bar 图生效
+    hatch: list[str] | None = None  # 柱子纹理序列（None=不使用）；多组时按索引轮换；仅 bar 图生效
     edgecolor: str | None = None    # 柱子/纹理边框颜色（None=matplotlib默认）；仅 bar 图生效
     hatch_linewidth: float = 0.5    # 纹理线宽；仅 hatch 不为 None 时生效
 
@@ -199,10 +199,15 @@ def apply_style_overrides(theme: ThemeConfig, spec: dict) -> ThemeConfig:
     将 spec 中的 style_* 覆写字段应用到 ThemeConfig，返回新实例。
     值为 None 的字段跳过（保留主题默认）。
     在 apply_theme() 之后调用。
+    style_hatch 支持单个字符串或字符串列表，统一转为 list[str] 存入 ThemeConfig。
     """
-    overrides = {
-        theme_key: spec[spec_key]
-        for spec_key, theme_key in _STYLE_OVERRIDE_MAP.items()
-        if spec.get(spec_key) is not None
-    }
+    overrides: dict = {}
+    for spec_key, theme_key in _STYLE_OVERRIDE_MAP.items():
+        val = spec.get(spec_key)
+        if val is None:
+            continue
+        if theme_key == "hatch":
+            overrides[theme_key] = [val] if isinstance(val, str) else list(val)
+        else:
+            overrides[theme_key] = val
     return dataclasses.replace(theme, **overrides) if overrides else theme

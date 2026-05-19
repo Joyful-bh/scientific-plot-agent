@@ -239,9 +239,9 @@ def _render_bar(
     stacked = spec.get("params_stacked", False)
     sort_mode = spec.get("params_sort")
     show_values = spec.get("params_show_values", False)
-    hatch = theme.hatch
+    hatch_seq = theme.hatch  # list[str] | None；多分组按索引轮换
     edgecolor = theme.edgecolor or "none"
-    if hatch:
+    if hatch_seq:
         mpl.rcParams["hatch.linewidth"] = theme.hatch_linewidth
 
     # data_y 是列表时 melt 为长表，复用分组逻辑；多指标下排序和误差棒无意义
@@ -250,15 +250,16 @@ def _render_bar(
                      var_name="_metric", value_name="_value")
         group_col, y_col, err_col, sort_mode = "_metric", "_value", None, None
 
-    if sort_mode == "asc":
-        df = df.sort_values(y_col)
-    elif sort_mode == "desc":
-        df = df.sort_values(y_col, ascending=False)
-
     fig, ax = _prepare_axes(spec, theme, layout)
     bars = None
 
     if group_col is None:
+        # 无分组时按 Y 值对 X 类别排序
+        if sort_mode == "asc":
+            df = df.sort_values(y_col)
+        elif sort_mode == "desc":
+            df = df.sort_values(y_col, ascending=False)
+        hatch = hatch_seq[0] if hatch_seq else None
         kw = dict(color=theme.palette[0], linewidth=theme.line_width,
                   capsize=layout.capsize, hatch=hatch, edgecolor=edgecolor)
         if horizontal:
@@ -271,6 +272,10 @@ def _render_bar(
             _add_bar_values(ax=ax, bars=bars, horizontal=horizontal, layout=layout)
     else:
         pivot = df.pivot(index=x_col, columns=group_col, values=y_col)
+        # 分组图按各分组 Y 值的均值对 X 类别排序
+        if sort_mode in ("asc", "desc"):
+            means = pivot.mean(axis=1)
+            pivot = pivot.loc[means.sort_values(ascending=(sort_mode == "asc")).index]
         x = np.arange(len(pivot.index))
         groups = list(pivot.columns)
         width = layout.bar_width  # 每组单根柱宽（layout 已按 n_groups 缩放）
@@ -280,6 +285,7 @@ def _render_bar(
             for i, g in enumerate(groups):
                 values = pivot[g].values
                 color = theme.palette[i % len(theme.palette)]
+                hatch = hatch_seq[i % len(hatch_seq)] if hatch_seq else None
                 kw = dict(color=color, linewidth=theme.line_width,
                           label=str(g), hatch=hatch, edgecolor=edgecolor)
                 bars = ax.barh(pivot.index, values, left=acc, **kw) if horizontal \
@@ -292,6 +298,7 @@ def _render_bar(
                 values = pivot[g].values
                 offset = (i - len(groups) / 2) * width + width / 2
                 color = theme.palette[i % len(theme.palette)]
+                hatch = hatch_seq[i % len(hatch_seq)] if hatch_seq else None
                 kw = dict(color=color, linewidth=theme.line_width,
                           label=str(g), hatch=hatch, edgecolor=edgecolor)
                 if horizontal:
@@ -452,12 +459,18 @@ def _render_heatmap(
     if filter_expr:
         df = df.query(filter_expr)
 
-    num_cols = [c for c in df.columns
-                if c not in (x_col, y_col) and pd.api.types.is_numeric_dtype(df[c])]
-    if not num_cols:
-        raise RenderError("heatmap 需要至少一个数值列作为热力值")
+    val_col = spec.get("params_heatmap_value")
+    if val_col and val_col in df.columns:
+        value_col = val_col
+    else:
+        num_cols = [c for c in df.columns
+                    if c not in (x_col, y_col) and pd.api.types.is_numeric_dtype(df[c])]
+        if not num_cols:
+            raise RenderError("heatmap 需要至少一个数值列作为热力值，"
+                              "或通过 params_heatmap_value 显式指定")
+        value_col = num_cols[0]
 
-    pivot = df.pivot(index=y_col, columns=x_col, values=num_cols[0])
+    pivot = df.pivot(index=y_col, columns=x_col, values=value_col)
     override = spec.get("style_palette_override")
     cmap = "coolwarm" if override == "coolwarm" else "Blues"
 

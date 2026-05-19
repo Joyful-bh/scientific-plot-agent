@@ -92,7 +92,9 @@ _SYSTEM_FIRST = """\
 - style_grid: true/false，是否显示网格
 - style_line_width: 数值，线宽（磅）
 - style_font_size: 整数，基准字号（磅）
-- style_hatch: 柱子纹理字符串，合法值："/" "\\" "|" "-" "+" "x" "o" "." "*"；null=不使用；⚠️必须是字符串，不能是true/false（仅bar图）
+- style_hatch: 柱子纹理，⚠️必须是字符串或字符串列表，不能是true/false（仅bar图）
+    单个字符串：所有分组用同一纹理，合法值："/" "\\" "|" "-" "+" "x" "o" "." "*"
+    字符串列表：各分组轮换使用不同纹理，如 ["/", "\\", "|"]（黑白打印区分分组）
 - style_edgecolor: 柱子/纹理边框色，如"white"/"black"，null=默认（仅bar图）
 - style_hatch_linewidth: 纹理线宽数值，null=0.5（仅style_hatch不为null时生效）
 - style_dpi: 整数，输出分辨率
@@ -112,12 +114,12 @@ bar图:
 line图:
   params_show_markers(true/false，是否显示数据点标记，默认true)
   params_marker_style(标记形状，"o"/"s"/"^"/"D"/"v"/"P"/"*"，null=默认"o")
-  params_marker_size(标记大小数值，如4) ← 注意：与 params_show_markers 是完全不同的字段
+  params_marker_size(标记大小数值，如4；null=按数据密度自动调整) ← 注意：与 params_show_markers 是完全不同的字段
   params_smooth(true/false) · params_linestyle("solid"/"dashed"/"dotted"/"dashdot")
   params_line_colors(自定义颜色列表，见配色字段说明)
 
 scatter图: params_alpha(0~1) · params_show_regression(true/false)
-  params_marker_style(标记形状) · params_marker_size(标记大小)
+  params_marker_style(标记形状) · params_marker_size(标记大小，null=按数据密度自动调整)
 
 box图:
   params_show_points 取值是字符串，不是布尔值：
@@ -127,6 +129,7 @@ box图:
 heatmap:
   params_annot(true/false，是否在格子里显示数值，默认true)
   params_annot_fmt(数值格式字符串，如".2f"保留两位小数，默认".2f")
+  params_heatmap_value(热力值列名字符串；null=自动取第一个非轴数值列)
 
 【输出规则】
 1. data_x、data_y 必须填数据摘要中出现的列名，不能填列的值
@@ -143,12 +146,12 @@ _SYSTEM_DELTA = """\
 标签: label_title · label_x · label_y
 坐标轴: axes_y_min · axes_y_max · axes_x_tick_rotation · axes_x_rotate_labels(bool，标签拥挤时true=旋转/false=缩小字号) · axes_y_scale("linear"/"log") · legend_loc("inside"/"outside_right"/"none")
 风格: style_theme[clean/vivid/nature/ieee/morandi/dark] · style_palette_override[morandi/nature_d/tab10/coolwarm，只能填这四个字符串之一]
-主题覆写: style_hatch(纹理字符串如"/""\\",⚠️必须是字符串非布尔，仅bar) · style_edgecolor(仅bar) · style_hatch_linewidth · style_grid(bool) · style_line_width · style_font_size · style_dpi · style_legend_frameon(bool) · style_bg_color · style_text_color · style_aspect_ratio · style_figure_width · style_font_family · style_spines(列表)
-bar参数: params_orientation · params_stacked · params_sort(按Y值排序) · params_show_values
-line参数: params_show_markers(bool) · params_marker_style(形状字符串) · params_marker_size · params_smooth · params_linestyle · params_line_colors(颜色列表)
-scatter参数: params_alpha · params_show_regression · params_marker_style · params_marker_size
+主题覆写: style_hatch(⚠️必须是字符串或列表非布尔，仅bar；单串="/",多分组轮换=["/","\\","|"]) · style_edgecolor(仅bar) · style_hatch_linewidth · style_grid(bool) · style_line_width · style_font_size · style_dpi · style_legend_frameon(bool) · style_bg_color · style_text_color · style_aspect_ratio · style_figure_width · style_font_family · style_spines(列表)
+bar参数: params_orientation · params_stacked · params_sort(按Y值排序；分组图按均值排序) · params_show_values
+line参数: params_show_markers(bool) · params_marker_style(形状字符串) · params_marker_size(null=自动) · params_smooth · params_linestyle · params_line_colors(颜色列表)
+scatter参数: params_alpha · params_show_regression · params_marker_style · params_marker_size(null=自动)
 box参数: params_show_points("all"/"outliers"/"none"，字符串非布尔) · params_notch
-heatmap参数: params_annot(bool) · params_annot_fmt(格式字符串，如".2f")
+heatmap参数: params_annot(bool) · params_annot_fmt(格式字符串，如".2f") · params_heatmap_value(热力值列名，null=自动)
 
 【输出规则】
 1. 只返回用户要求改变的字段，其余字段不输出
