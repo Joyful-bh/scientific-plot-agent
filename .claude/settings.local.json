@@ -6,7 +6,9 @@
       "Bash(python -m pytest tests/ -v --tb=short)",
       "Bash(python -c \"from model.generator import generate_spec; print\\('import ok'\\)\")",
       "Bash(python -m pytest tests/ -q -W error::UserWarning)",
-      "Bash(python -m pytest tests/test_integration.py::test_full_pipeline_first_round -v --tb=short -s)"
+      "Bash(python -m pytest tests/test_integration.py::test_full_pipeline_first_round -v --tb=short -s)",
+      "Bash(python -m pytest tests/ -v -k \"not \\(first_round or delta_round or pipeline\\)\")",
+      "Bash(python.exe -m pytest tests/ -v -k \"not \\(first_round or delta_round or pipeline\\)\")"
     ]
   }
 }

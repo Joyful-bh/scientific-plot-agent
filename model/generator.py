@@ -76,7 +76,9 @@ _SYSTEM_FIRST = """\
 【坐标轴可选字段】
 - axes_y_min / axes_y_max: Y轴数值范围（如 axes_y_min=80）
 - axes_x_tick_rotation: X轴刻度旋转角度（如 45，默认0）
+- axes_x_rotate_labels: 标签拥挤时的处理方式，true=旋转标签（30°–45°），false=缩小字号（默认false）
 - axes_y_scale: Y轴缩放，"linear"（默认）或 "log"
+- legend_loc: 图例位置，"inside"=图内最优位置，"outside_right"=图外右侧，"none"=不显示，null=自动
 
 【配色可选字段】（两个字段用途完全不同，不能混用）
 - style_palette_override: 切换预设配色方案，值只能是以下字符串之一：
@@ -86,11 +88,26 @@ _SYSTEM_FIRST = """\
     示例：["#E64B35","#4DBBD5","#00A087","#3C5488"]
   ⚠️ 这个字段只用于 line 图；bar/scatter/box 图改颜色只能用 style_palette_override
 
+【主题覆写字段】（在所选主题基础上修改单项视觉属性，null=保留主题默认）
+- style_grid: true/false，是否显示网格
+- style_line_width: 数值，线宽（磅）
+- style_font_size: 整数，基准字号（磅）
+- style_hatch: 柱子纹理字符串，合法值："/" "\\" "|" "-" "+" "x" "o" "." "*"；null=不使用；⚠️必须是字符串，不能是true/false（仅bar图）
+- style_edgecolor: 柱子/纹理边框色，如"white"/"black"，null=默认（仅bar图）
+- style_hatch_linewidth: 纹理线宽数值，null=0.5（仅style_hatch不为null时生效）
+- style_dpi: 整数，输出分辨率
+- style_legend_frameon: true/false，图例是否有边框
+- style_bg_color: 背景色字符串，如"#1e1e2e"
+- style_text_color: 文字/刻度颜色字符串
+- style_aspect_ratio: 宽高比数值，如0.75（高=宽×该值）
+- style_figure_width: 最小图幅宽度（英寸），如5.0；LayoutEngine仍可按数据扩大
+- style_font_family: 字体族，如"Arial"/"Times New Roman"/"DejaVu Sans"
+- style_spines: 保留的轴脊列表，如["left","bottom"]或["left","bottom","top","right"]
+
 【图表专属参数】
 bar图:
   params_orientation("vertical"默认/"horizontal") · params_stacked(true/false)
   params_sort("asc"/"desc"，按Y值大小排序柱子) · params_show_values(true/false，柱顶显示数值)
-  params_hatch(柱子纹理，如"/""\\""|""-""+"，null=不使用) · params_edgecolor(纹理边框色，如"white"/"black")
 
 line图:
   params_show_markers(true/false，是否显示数据点标记，默认true)
@@ -124,14 +141,14 @@ _SYSTEM_DELTA = """\
 【可修改的字段范围】
 数据: data_x · data_y · data_group_by · data_error · data_filter
 标签: label_title · label_x · label_y
-坐标轴: axes_y_min · axes_y_max · axes_x_tick_rotation · axes_y_scale
+坐标轴: axes_y_min · axes_y_max · axes_x_tick_rotation · axes_x_rotate_labels(bool，标签拥挤时true=旋转/false=缩小字号) · axes_y_scale("linear"/"log") · legend_loc("inside"/"outside_right"/"none")
 风格: style_theme[clean/vivid/nature/ieee/morandi/dark] · style_palette_override[morandi/nature_d/tab10/coolwarm，只能填这四个字符串之一]
-bar参数: params_orientation · params_stacked · params_sort(按Y值排序) · params_show_values · params_hatch · params_edgecolor
+主题覆写: style_hatch(纹理字符串如"/""\\",⚠️必须是字符串非布尔，仅bar) · style_edgecolor(仅bar) · style_hatch_linewidth · style_grid(bool) · style_line_width · style_font_size · style_dpi · style_legend_frameon(bool) · style_bg_color · style_text_color · style_aspect_ratio · style_figure_width · style_font_family · style_spines(列表)
+bar参数: params_orientation · params_stacked · params_sort(按Y值排序) · params_show_values
 line参数: params_show_markers(bool) · params_marker_style(形状字符串) · params_marker_size · params_smooth · params_linestyle · params_line_colors(颜色列表)
 scatter参数: params_alpha · params_show_regression · params_marker_style · params_marker_size
 box参数: params_show_points("all"/"outliers"/"none"，字符串非布尔) · params_notch
 heatmap参数: params_annot(bool) · params_annot_fmt(格式字符串，如".2f")
-坐标轴: axes_y_min · axes_y_max · axes_x_tick_rotation · axes_y_scale("linear"/"log")
 
 【输出规则】
 1. 只返回用户要求改变的字段，其余字段不输出

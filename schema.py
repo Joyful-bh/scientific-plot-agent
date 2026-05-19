@@ -46,15 +46,29 @@ OPTIONAL_DEFAULTS: dict = {
     "axes_y_min": None,
     "axes_y_max": None,
     "axes_x_tick_rotation": 0,
+    "axes_x_rotate_labels": False,  # True=标签过密时旋转，False=缩小字号（默认）
     "style_palette_override": None,
+    # 主题属性覆写（None = 使用所选主题的默认值）
+    "style_grid": None,
+    "style_line_width": None,
+    "style_font_size": None,
+    "style_hatch": None,            # 柱子纹理，如 "/" "\\" "|" "-" "+" "x"；None=不使用；仅 bar 图生效
+    "style_edgecolor": None,        # 柱子/纹理边框颜色，如 "white"/"black"；None=matplotlib默认；仅 bar 图生效
+    "style_hatch_linewidth": None,  # 纹理线宽（None=用主题默认 0.5）；仅 style_hatch 不为 None 时生效
+    "style_dpi": None,
+    "style_legend_frameon": None,
+    "style_bg_color": None,
+    "style_text_color": None,
+    "legend_loc": None,             # 图例位置：None/"auto"=自动; "inside"=图内最优; "outside_right"=图外右侧; "none"=不显示
+    "style_aspect_ratio": None,     # 宽高比覆写，如 0.75（高/宽）；None=用主题默认
+    "style_figure_width": None,     # 最小图幅宽度下限（英寸）；LayoutEngine 仍可按数据扩大
+    "style_font_family": None,      # 字体族覆写，如 "Arial" / "Times New Roman" / "DejaVu Sans"
+    "style_spines": None,           # 保留的轴脊方向列表，如 ["left","bottom"] 或 ["left","bottom","top","right"]
     # bar 专属
     "params_orientation": "vertical",
     "params_stacked": False,
     "params_sort": None,
     "params_show_values": False,
-    "params_hatch": None,           # 柱子纹理，如 "/" "\\" "|" "-" "+" "x" "o" "." "*"；None=不使用
-    "params_edgecolor": None,       # 柱子/纹理边框颜色，如 "white"/"black"；None=matplotlib默认
-    "params_hatch_linewidth": 0.5,  # 纹理线宽；仅 params_hatch 不为 None 时生效
     # line 专属
     "params_show_markers": True,
     "params_smooth": False,
@@ -76,10 +90,7 @@ OPTIONAL_DEFAULTS: dict = {
 
 # 每种图表类型对应的有效 params 字段
 CHART_PARAMS: dict[str, list[str]] = {
-    "bar":     [
-        "params_orientation", "params_stacked", "params_sort", "params_show_values",
-        "params_hatch", "params_edgecolor", "params_hatch_linewidth",
-    ],
+    "bar":     ["params_orientation", "params_stacked", "params_sort", "params_show_values"],
     "line":    ["params_show_markers", "params_smooth", "params_linestyle", "params_line_colors",
                 "params_marker_style", "params_marker_size"],
     "scatter": ["params_alpha", "params_show_regression", "params_marker_style", "params_marker_size"],

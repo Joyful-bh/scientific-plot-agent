@@ -28,8 +28,11 @@ class ThemeConfig:
     grid_style: str
     legend_frameon: bool
     palette: list[str]
-    bg_color: str = "white"    # 背景色；dark 主题使用深色
-    text_color: str = "black"  # 文字/刻度/轴脊颜色；dark 主题使用浅色
+    bg_color: str = "white"         # 背景色；dark 主题使用深色
+    text_color: str = "black"       # 文字/刻度/轴脊颜色；dark 主题使用浅色
+    hatch: str | None = None        # 柱子纹理（None=不使用）；仅 bar 图生效
+    edgecolor: str | None = None    # 柱子/纹理边框颜色（None=matplotlib默认）；仅 bar 图生效
+    hatch_linewidth: float = 0.5    # 纹理线宽；仅 hatch 不为 None 时生效
 
 
 def _tab10_colors() -> list[str]:
@@ -170,3 +173,36 @@ def apply_theme(
     new_palette = override_palette if isinstance(override_palette, list) else base.palette
 
     return dataclasses.replace(base, palette=new_palette)
+
+
+# spec 字段名 → ThemeConfig 字段名的映射（style_* 覆写通道）
+_STYLE_OVERRIDE_MAP: dict[str, str] = {
+    "style_grid":           "grid",
+    "style_line_width":     "line_width",
+    "style_font_size":      "font_size",
+    "style_hatch":          "hatch",
+    "style_edgecolor":      "edgecolor",
+    "style_hatch_linewidth": "hatch_linewidth",
+    "style_dpi":            "dpi",
+    "style_legend_frameon": "legend_frameon",
+    "style_bg_color":       "bg_color",
+    "style_text_color":     "text_color",
+    "style_aspect_ratio":   "aspect_ratio",
+    "style_figure_width":   "figure_width",
+    "style_font_family":    "font_family",
+    "style_spines":         "spines",
+}
+
+
+def apply_style_overrides(theme: ThemeConfig, spec: dict) -> ThemeConfig:
+    """
+    将 spec 中的 style_* 覆写字段应用到 ThemeConfig，返回新实例。
+    值为 None 的字段跳过（保留主题默认）。
+    在 apply_theme() 之后调用。
+    """
+    overrides = {
+        theme_key: spec[spec_key]
+        for spec_key, theme_key in _STYLE_OVERRIDE_MAP.items()
+        if spec.get(spec_key) is not None
+    }
+    return dataclasses.replace(theme, **overrides) if overrides else theme

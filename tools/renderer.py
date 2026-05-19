@@ -6,6 +6,7 @@ B线工具：PlotRenderer
 
 from __future__ import annotations
 
+import math
 import time
 import warnings
 from pathlib import Path
@@ -18,7 +19,7 @@ import seaborn as sns
 
 from tools.layout import LayoutParams, compute_layout
 from tools.loader import get_dataframe, load_data
-from tools.themes import ThemeConfig, apply_theme
+from tools.themes import ThemeConfig, apply_style_overrides, apply_theme
 
 # 中文字体缺失会触发此 warning，属正常 fallback 行为，过滤掉
 warnings.filterwarnings("ignore", message=r"Glyph \d+ .* missing from font")
@@ -66,6 +67,49 @@ def _apply_axis_scales(ax: plt.Axes, spec: dict, horizontal: bool = False) -> No
             ax.set_xscale("log")
         else:
             ax.set_yscale("log")
+
+
+def _auto_rotate_xlabels(
+    fig: plt.Figure, ax: plt.Axes, rotate: bool = False, min_gap_pt: float = 6.0
+) -> None:
+    """
+    Draw-measure-fix：触发一次渲染以物化 X 轴 tick label，
+    测量实际 bounding box，间距不足 min_gap_pt pt 时触发修正。
+
+    rotate=True  → 旋转标签，角度由 arccos 平滑计算，夹在 [30°, 45°]。
+    rotate=False → 缩小字号，缩放比例与拥挤程度成比例，最小 5pt。
+    """
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+
+    labels = [t for t in ax.get_xticklabels() if t.get_text().strip()]
+    if len(labels) < 2:
+        return
+
+    bboxes = [t.get_window_extent(renderer) for t in labels]
+    order = sorted(range(len(bboxes)), key=lambda i: bboxes[i].x0)
+    labels = [labels[i] for i in order]
+    bboxes = [bboxes[i] for i in order]
+
+    safety_px = min_gap_pt * fig.dpi / 72.0
+    min_gap = min(bboxes[i + 1].x0 - bboxes[i].x1 for i in range(len(bboxes) - 1))
+    if min_gap >= safety_px:
+        return
+
+    slot_px = ax.get_window_extent(renderer).width / max(len(bboxes), 1)
+    max_w_px = max(b.width for b in bboxes)
+    # ratio: 标签宽度占槽宽的比，用于 arccos 和字号缩放
+    ratio = max(0.0, (slot_px - safety_px) / max(max_w_px, 1.0))
+
+    if rotate:
+        required_deg = math.degrees(math.acos(min(ratio, 1.0)))
+        rotation = max(30, min(45, round(required_deg)))
+        ax.tick_params(axis='x', labelrotation=rotation)
+        plt.setp(ax.get_xticklabels(), ha='right')
+    else:
+        current_size = labels[0].get_fontsize()
+        new_size = max(3.0, current_size * max(0.5, ratio))
+        ax.tick_params(axis='x', labelsize=new_size)
 
 
 def _add_bar_values(
@@ -116,8 +160,12 @@ def _apply_theme_to_fig(
         for spine in ax.spines.values():
             spine.set_edgecolor(theme.text_color)
 
-    # X 轴刻度标签旋转（统一处理，子渲染器无需各自设置）
-    plt.setp(ax.get_xticklabels(), rotation=layout.tick_rotation, ha=layout.tick_ha)
+    # 用户明确指定旋转时直接应用；tick_rotation=0 交由 _auto_rotate_xlabels post-draw 测量决定
+    if layout.tick_rotation != 0:
+        ax.tick_params(axis='x', labelrotation=layout.tick_rotation)
+        plt.setp(ax.get_xticklabels(), ha=layout.tick_ha)
+    else:
+        _auto_rotate_xlabels(fig, ax, rotate=layout.rotate_labels)
 
     # 图例位置（统一处理）：仅当存在有标签的 artist 时才创建图例
     handles, labels = ax.get_legend_handles_labels()
@@ -154,6 +202,7 @@ def render_plot(spec: dict, data_source: str) -> str:
     try:
         df = _resolve_dataframe(data_source, spec)
         theme = apply_theme(spec["style_theme"], spec.get("style_palette_override"))
+        theme = apply_style_overrides(theme, spec)
         # Microsoft YaHei 放首位：同时覆盖中文和西文，不依赖 fallback 机制
         # 主题字体（Arial/Times New Roman）排后，作为在 YaHei 缺字时的备用
         mpl.rcParams["font.sans-serif"] = ["Microsoft YaHei", theme.font_family, "SimHei", "DejaVu Sans"]
@@ -190,10 +239,10 @@ def _render_bar(
     stacked = spec.get("params_stacked", False)
     sort_mode = spec.get("params_sort")
     show_values = spec.get("params_show_values", False)
-    hatch = spec.get("params_hatch")
-    edgecolor = spec.get("params_edgecolor") or "none"
+    hatch = theme.hatch
+    edgecolor = theme.edgecolor or "none"
     if hatch:
-        mpl.rcParams["hatch.linewidth"] = spec.get("params_hatch_linewidth", 0.5)
+        mpl.rcParams["hatch.linewidth"] = theme.hatch_linewidth
 
     # data_y 是列表时 melt 为长表，复用分组逻辑；多指标下排序和误差棒无意义
     if isinstance(y_col, list):
@@ -218,6 +267,8 @@ def _render_bar(
         else:
             bars = ax.bar(df[x_col], df[y_col], width=layout.bar_width,
                           yerr=df[err_col] if err_col else None, **kw)
+        if show_values:
+            _add_bar_values(ax=ax, bars=bars, horizontal=horizontal, layout=layout)
     else:
         pivot = df.pivot(index=x_col, columns=group_col, values=y_col)
         x = np.arange(len(pivot.index))
@@ -233,6 +284,8 @@ def _render_bar(
                           label=str(g), hatch=hatch, edgecolor=edgecolor)
                 bars = ax.barh(pivot.index, values, left=acc, **kw) if horizontal \
                     else ax.bar(x, values, bottom=acc, **kw)
+                if show_values:
+                    _add_bar_values(ax=ax, bars=bars, horizontal=horizontal, layout=layout)
                 acc += values
         else:
             for i, g in enumerate(groups):
@@ -249,9 +302,8 @@ def _render_bar(
                     bars = ax.bar(x + offset, values, width=width, **kw)
                     ax.set_xticks(x)
                     ax.set_xticklabels(pivot.index)
-
-    if show_values and bars is not None:
-        _add_bar_values(ax=ax, bars=bars, horizontal=horizontal, layout=layout)
+                if show_values:
+                    _add_bar_values(ax=ax, bars=bars, horizontal=horizontal, layout=layout)
 
     _apply_axis_limits(ax, layout, horizontal)
     _apply_axis_scales(ax, spec, horizontal)

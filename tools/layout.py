@@ -24,7 +24,7 @@ class LayoutParams:
     figure_height: float      # 最终图幅高度（英寸）
     font_size: float          # 最终字体大小（磅），夹在 [6, 14]
     legend_fontsize: float    # = font_size × 0.85
-    tick_rotation: int        # X 轴刻度旋转角度
+    tick_rotation: int        # X 轴刻度旋转角度；0 = 渲染层 post-draw 自动检测，非零 = 用户明确指定
     tick_ha: str              # 刻度标签水平对齐："right"（旋转时）或 "center"
     legend_loc: str           # "inside_best" | "outside_right" | "none"
     y_min: float | None       # Y 轴下限（已合并用户指定值与自动计算值）；None = matplotlib 自动
@@ -34,6 +34,7 @@ class LayoutParams:
     annot_fontsize: float     # 热力图单元格注释字体大小
     capsize: float            # 误差棒帽宽（磅）
     x_max_ticks: int | None   # 折线图 X 轴最多刻度数；None = 不限制
+    rotate_labels: bool       # True=间距不足时旋转标签(30°–45°)；False=缩小字号（来自 axes_x_rotate_labels）
 
 
 def compute_layout(
@@ -73,6 +74,7 @@ def _fallback(theme: ThemeConfig) -> LayoutParams:
         annot_fontsize=base_font,
         capsize=float(theme.line_width) * 2,
         x_max_ticks=None,
+        rotate_labels=False,
     )
 
 
@@ -81,21 +83,6 @@ def _scale_font(base: float, fig_w: float, base_w: float) -> float:
     ratio = (fig_w / max(base_w, 0.1)) ** 0.4
     return round(max(6.0, min(14.0, base * ratio)), 1)
 
-
-def _auto_tick_rotation(labels: list, n_labels: int, fig_w: float) -> tuple[int, str]:
-    """
-    根据标签平均长度和类别密度自动判断旋转角度。
-    返回 (rotation, ha)：rotation > 0 时 ha="right"，否则 ha="center"。
-    """
-    if not labels or n_labels == 0:
-        return 0, "center"
-    avg_len = sum(len(str(lb)) for lb in labels) / len(labels)
-    density = avg_len * n_labels / max(fig_w * 8, 1)
-    if density > 1.4:
-        return 60, "right"
-    if density > 0.7:
-        return 45, "right"
-    return 0, "center"
 
 
 def _auto_y_bottom(df: pd.DataFrame, y_col: str | list) -> float | None:
@@ -147,6 +134,16 @@ def _legend_params(n_series: int) -> str:
     return "outside_right"
 
 
+def _resolve_legend_loc(default_loc: str, spec: dict) -> str:
+    """用 spec.legend_loc 覆写 LayoutEngine 的默认图例位置。
+    用户值 "inside" 映射到内部值 "inside_best"；None/"auto" 保留默认。
+    """
+    user_val = spec.get("legend_loc")
+    if not user_val or user_val == "auto":
+        return default_loc
+    return "inside_best" if user_val == "inside" else user_val
+
+
 # ---------------------------------------------------------------------------
 # 各图表类型布局计算
 # ---------------------------------------------------------------------------
@@ -170,7 +167,7 @@ def _layout_bar(df: pd.DataFrame, spec: dict, theme: ThemeConfig) -> LayoutParam
     fig_w = max(theme.figure_width, min_width)
 
     n_legend = n_groups if n_groups > 1 else 0
-    legend_loc = _legend_params(n_legend)
+    legend_loc = _resolve_legend_loc(_legend_params(n_legend), spec)
     if legend_loc == "outside_right":
         fig_w += 1.2  # 为图外图例留空间
 
@@ -179,17 +176,18 @@ def _layout_bar(df: pd.DataFrame, spec: dict, theme: ThemeConfig) -> LayoutParam
     font_size = _scale_font(theme.font_size, fig_w, theme.figure_width)
     legend_fontsize = round(font_size * 0.85, 1)
 
+    rotate_labels = bool(spec.get("axes_x_rotate_labels", False))
+
     if horizontal:
         # 水平柱状图：类别在 Y 轴，X 轴是数值，不旋转 X 刻度
         tick_rotation, tick_ha = 0, "center"
     else:
         user_rot = spec.get("axes_x_tick_rotation")
-        if user_rot is not None:
+        if user_rot:  # 用户明确指定了非零旋转，直接使用；否则 post-draw 自动检测
             tick_rotation = int(user_rot)
             tick_ha = "right" if tick_rotation > 0 else "center"
         else:
-            labels = list(df[x_col].unique()) if x_col in df.columns else []
-            tick_rotation, tick_ha = _auto_tick_rotation(labels, n_cat, fig_w)
+            tick_rotation, tick_ha = 0, "center"
 
     y_min, y_max = _compute_y_range(df, spec, y_col)
 
@@ -204,6 +202,7 @@ def _layout_bar(df: pd.DataFrame, spec: dict, theme: ThemeConfig) -> LayoutParam
         annot_fontsize=font_size,
         capsize=float(theme.line_width) * 2,
         x_max_ticks=None,
+        rotate_labels=rotate_labels,
     )
 
 
@@ -221,7 +220,14 @@ def _layout_line(df: pd.DataFrame, spec: dict, theme: ThemeConfig) -> LayoutPara
         n_series = 1
 
     fig_w = theme.figure_width
-    legend_loc = _legend_params(n_series if n_series > 1 else 0)
+    # 折线图数据覆盖全图区域，3 条及以上系列改为图外放置以减少遮挡
+    if n_series <= 1:
+        _default_legend = "none"
+    elif n_series <= 2:
+        _default_legend = "inside_best"
+    else:
+        _default_legend = "outside_right"
+    legend_loc = _resolve_legend_loc(_default_legend, spec)
     if legend_loc == "outside_right":
         fig_w += 1.2
     fig_h = fig_w * theme.aspect_ratio
@@ -240,15 +246,18 @@ def _layout_line(df: pd.DataFrame, spec: dict, theme: ThemeConfig) -> LayoutPara
     else:
         marker_size = 5.0
 
-    x_max_ticks = 10 if n_points > 20 else None
+    # 用唯一 X 值数量（而非总行数）判断是否需要限制刻度数量
+    n_x = int(df[x_col].nunique()) if x_col in df.columns else n_points
+    x_max_ticks = 10 if n_x > 15 else None
 
     user_rot = spec.get("axes_x_tick_rotation")
-    if user_rot is not None:
+    if user_rot:  # 用户明确指定了非零旋转，直接使用；否则 post-draw 自动检测
         tick_rotation = int(user_rot)
         tick_ha = "right" if tick_rotation > 0 else "center"
     else:
         tick_rotation, tick_ha = 0, "center"
 
+    rotate_labels = bool(spec.get("axes_x_rotate_labels", False))
     y_min, y_max = _compute_y_range(df, spec, y_col)
 
     return LayoutParams(
@@ -262,6 +271,7 @@ def _layout_line(df: pd.DataFrame, spec: dict, theme: ThemeConfig) -> LayoutPara
         annot_fontsize=font_size,
         capsize=float(theme.line_width) * 2,
         x_max_ticks=x_max_ticks,
+        rotate_labels=rotate_labels,
     )
 
 
@@ -271,7 +281,7 @@ def _layout_scatter(df: pd.DataFrame, spec: dict, theme: ThemeConfig) -> LayoutP
     n_series = int(df[group_col].nunique()) if group_col and group_col in df.columns else 1
 
     fig_w = theme.figure_width
-    legend_loc = _legend_params(n_series if n_series > 1 else 0)
+    legend_loc = _resolve_legend_loc(_legend_params(n_series if n_series > 1 else 0), spec)
     if legend_loc == "outside_right":
         fig_w += 1.2
     fig_h = fig_w * theme.aspect_ratio
@@ -287,12 +297,13 @@ def _layout_scatter(df: pd.DataFrame, spec: dict, theme: ThemeConfig) -> LayoutP
         marker_size = max(10.0, min(80.0, 60.0 / max(n_points ** 0.5, 1)))
 
     user_rot = spec.get("axes_x_tick_rotation")
-    if user_rot is not None:
+    if user_rot:  # 用户明确指定了非零旋转，直接使用；否则 post-draw 自动检测
         tick_rotation = int(user_rot)
         tick_ha = "right" if tick_rotation > 0 else "center"
     else:
         tick_rotation, tick_ha = 0, "center"
 
+    rotate_labels = bool(spec.get("axes_x_rotate_labels", False))
     y_col = spec.get("data_y", "")
     y_min, y_max = _compute_y_range(df, spec, y_col)
 
@@ -307,6 +318,7 @@ def _layout_scatter(df: pd.DataFrame, spec: dict, theme: ThemeConfig) -> LayoutP
         annot_fontsize=font_size,
         capsize=float(theme.line_width) * 2,
         x_max_ticks=None,
+        rotate_labels=rotate_labels,
     )
 
 
@@ -317,6 +329,9 @@ def _layout_box(df: pd.DataFrame, spec: dict, theme: ThemeConfig) -> LayoutParam
 
     min_width = n_cat * 0.5 + 1.2
     fig_w = max(theme.figure_width, min_width)
+    legend_loc = _resolve_legend_loc("none", spec)
+    if legend_loc == "outside_right":
+        fig_w += 1.2
     fig_h = fig_w * theme.aspect_ratio
     bar_width = max(0.1, min(0.5, 0.6 / max(n_cat, 1)))
 
@@ -324,26 +339,27 @@ def _layout_box(df: pd.DataFrame, spec: dict, theme: ThemeConfig) -> LayoutParam
     legend_fontsize = round(font_size * 0.85, 1)
 
     user_rot = spec.get("axes_x_tick_rotation")
-    if user_rot is not None:
+    if user_rot:  # 用户明确指定了非零旋转，直接使用；否则 post-draw 自动检测
         tick_rotation = int(user_rot)
         tick_ha = "right" if tick_rotation > 0 else "center"
     else:
-        labels = list(df[x_col].unique()) if x_col in df.columns else []
-        tick_rotation, tick_ha = _auto_tick_rotation(labels, n_cat, fig_w)
+        tick_rotation, tick_ha = 0, "center"
 
+    rotate_labels = bool(spec.get("axes_x_rotate_labels", False))
     y_min, y_max = _compute_y_range(df, spec, y_col)
 
     return LayoutParams(
         figure_width=fig_w, figure_height=fig_h,
         font_size=font_size, legend_fontsize=legend_fontsize,
         tick_rotation=tick_rotation, tick_ha=tick_ha,
-        legend_loc="none",  # 箱线图通常无需图例
+        legend_loc=legend_loc,
         y_min=y_min, y_max=y_max,
         bar_width=bar_width,
         marker_size=float(theme.font_size) * 0.4,
         annot_fontsize=font_size,
         capsize=float(theme.line_width) * 2,
         x_max_ticks=None,
+        rotate_labels=rotate_labels,
     )
 
 
@@ -358,6 +374,9 @@ def _layout_heatmap(df: pd.DataFrame, spec: dict, theme: ThemeConfig) -> LayoutP
 
     cell_size = 0.5  # 每格约 0.5 英寸
     fig_w = max(theme.figure_width, n_cols * cell_size + 1.5)
+    legend_loc = _resolve_legend_loc("none", spec)
+    if legend_loc == "outside_right":
+        fig_w += 1.2
     fig_h = max(theme.figure_width * theme.aspect_ratio, n_rows * cell_size + 1.0)
 
     font_size = _scale_font(theme.font_size, fig_w, theme.figure_width)
@@ -368,24 +387,26 @@ def _layout_heatmap(df: pd.DataFrame, spec: dict, theme: ThemeConfig) -> LayoutP
     annot_fontsize = 6.0 if n_cells > 20 else round(font_size * 0.85, 1)
 
     user_rot = spec.get("axes_x_tick_rotation")
-    if user_rot is not None:
+    if user_rot:  # 用户明确指定了非零旋转，直接使用；否则 post-draw 自动检测
         tick_rotation = int(user_rot)
         tick_ha = "right" if tick_rotation > 0 else "center"
     else:
-        labels = list(dff[x_col].unique()) if x_col in dff.columns else []
-        tick_rotation, tick_ha = _auto_tick_rotation(labels, n_cols, fig_w)
+        tick_rotation, tick_ha = 0, "center"
+
+    rotate_labels = bool(spec.get("axes_x_rotate_labels", False))
 
     return LayoutParams(
         figure_width=fig_w, figure_height=fig_h,
         font_size=font_size, legend_fontsize=legend_fontsize,
         tick_rotation=tick_rotation, tick_ha=tick_ha,
-        legend_loc="none",  # 热力图用 colorbar，无需独立图例
+        legend_loc=legend_loc,
         y_min=None, y_max=None,
         bar_width=0.6,
         marker_size=5.0,
         annot_fontsize=annot_fontsize,
         capsize=float(theme.line_width) * 2,
         x_max_ticks=None,
+        rotate_labels=rotate_labels,
     )
 
 
