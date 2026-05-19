@@ -8,5 +8,5 @@ dist/
 build/
 .venv/
 venv/
-.env
+# .env
 CLAUDE.md
