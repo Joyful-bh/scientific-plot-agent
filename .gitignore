@@ -9,4 +9,5 @@ build/
 .venv/
 venv/
 .env
+.claude
 CLAUDE.md
