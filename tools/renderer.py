@@ -293,6 +293,12 @@ def _render_bar(
                 if show_values:
                     _add_bar_values(ax=ax, bars=bars, horizontal=horizontal, layout=layout)
                 acc += values
+            if horizontal:
+                ax.set_yticks(x)
+                ax.set_yticklabels(pivot.index)
+            else:
+                ax.set_xticks(x)
+                ax.set_xticklabels(pivot.index)
         else:
             for i, g in enumerate(groups):
                 values = pivot[g].values
@@ -432,9 +438,10 @@ def _render_box(
     fig, ax = _prepare_axes(spec, theme, layout)
     flierprops = {"marker": ""} if show_points == "none" else {}
 
-    sns.boxplot(data=df, x=x_col, y=y_col, notch=notch,
+    # hue=x_col 配合 palette 避免 seaborn ≥0.13 的 FutureWarning；legend=False 不重复显示图例
+    sns.boxplot(data=df, x=x_col, y=y_col, hue=x_col, notch=notch,
                 palette=theme.palette, linewidth=theme.line_width,
-                width=layout.bar_width,
+                width=layout.bar_width, legend=False,
                 flierprops=flierprops, ax=ax)
 
     if show_points == "all":
@@ -459,18 +466,27 @@ def _render_heatmap(
     if filter_expr:
         df = df.query(filter_expr)
 
-    val_col = spec.get("params_heatmap_value")
-    if val_col and val_col in df.columns:
-        value_col = val_col
+    if x_col not in df.columns:
+        # 宽表路径：列名本身是分类轴，data_x 为概念名而非真实列
+        pivot = df.set_index(y_col).select_dtypes(include="number")
+        if pivot.empty:
+            raise RenderError(
+                f"heatmap 列 '{x_col}' 不存在于数据中，"
+                f"且宽表识别失败（data_y='{y_col}' 之外无可用数值列）"
+            )
     else:
-        num_cols = [c for c in df.columns
-                    if c not in (x_col, y_col) and pd.api.types.is_numeric_dtype(df[c])]
-        if not num_cols:
-            raise RenderError("heatmap 需要至少一个数值列作为热力值，"
-                              "或通过 params_heatmap_value 显式指定")
-        value_col = num_cols[0]
-
-    pivot = df.pivot(index=y_col, columns=x_col, values=value_col)
+        # 长表路径：标准 pivot
+        val_col = spec.get("params_heatmap_value")
+        if val_col and val_col in df.columns:
+            value_col = val_col
+        else:
+            num_cols = [c for c in df.columns
+                        if c not in (x_col, y_col) and pd.api.types.is_numeric_dtype(df[c])]
+            if not num_cols:
+                raise RenderError("heatmap 需要至少一个数值列作为热力值，"
+                                  "或通过 params_heatmap_value 显式指定")
+            value_col = num_cols[0]
+        pivot = df.pivot(index=y_col, columns=x_col, values=value_col)
     override = spec.get("style_palette_override")
     cmap = "coolwarm" if override == "coolwarm" else "Blues"
 

@@ -130,9 +130,12 @@ heatmap:
   params_annot(true/false，是否在格子里显示数值，默认true)
   params_annot_fmt(数值格式字符串，如".2f"保留两位小数，默认".2f")
   params_heatmap_value(热力值列名字符串；null=自动取第一个非轴数值列)
+  ⚠️ 宽表矩阵格式（列名本身是分类值，如 model|SST-2|MR|CoLA）：
+     data_y 填行标签列名（如"model"），data_x 填列轴的概念名（任意字符串，如"dataset"）
+     系统自动识别宽表，params_heatmap_value 留 null
 
 【输出规则】
-1. data_x、data_y 必须填数据摘要中出现的列名，不能填列的值
+1. data_x、data_y 通常填数据摘要中出现的列名；heatmap 宽表时 data_x 例外，填列轴概念名即可
 2. style_palette_override 只能填预设名称字符串，绝对不能填颜色列表；line图自定义颜色用 params_line_colors
 3. params_show_markers 是布尔(true/false)，params_marker_style 是形状字符串，二者不能互换
 4. params_show_points 是字符串("all"/"outliers"/"none")，不是布尔值
@@ -152,6 +155,7 @@ line参数: params_show_markers(bool) · params_marker_style(形状字符串) ·
 scatter参数: params_alpha · params_show_regression · params_marker_style · params_marker_size(null=自动)
 box参数: params_show_points("all"/"outliers"/"none"，字符串非布尔) · params_notch
 heatmap参数: params_annot(bool) · params_annot_fmt(格式字符串，如".2f") · params_heatmap_value(热力值列名，null=自动)
+  【宽表heatmap】data_y=行标签列名，data_x=列轴概念名（任意字符串，无需是真实列名）
 
 【输出规则】
 1. 只返回用户要求改变的字段，其余字段不输出
