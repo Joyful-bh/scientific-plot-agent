@@ -1,0 +1,22 @@
+method,k_shot,accuracy,F1
+Prompt-tuning,0,59.14,58.01
+Prompt-tuning,1,63.5,62.1
+Prompt-tuning,2,65.57,63.86
+Prompt-tuning,4,68.16,66.49
+Prompt-tuning,8,72.61,71.95
+Prompt-tuning,16,80.74,79.05
+Prompt-tuning,32,83.34,82.04
+Adapter,0,52.25,50.45
+Adapter,1,55.67,54.55
+Adapter,2,58.22,57.08
+Adapter,4,64.23,62.43
+Adapter,8,71.71,70.84
+Adapter,16,80.1,78.48
+Adapter,32,87.29,86.63
+Full fine-tune,0,46.96,45.57
+Full fine-tune,1,51.34,49.6
+Full fine-tune,2,55.52,54.8
+Full fine-tune,4,63.52,62.77
+Full fine-tune,8,71.71,70.98
+Full fine-tune,16,82.19,81.66
+Full fine-tune,32,89.14,88.38

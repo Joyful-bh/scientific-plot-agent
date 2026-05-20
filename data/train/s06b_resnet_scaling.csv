@@ -1,0 +1,6 @@
+approach,top1_acc,parameters_M,img_per_sec
+ResNet-18,69.73,11.7,5821
+ResNet-34,73.44,21.8,3249
+ResNet-50,76.22,25.6,1053
+ResNet-101,77.45,44.5,509
+ResNet-152,78.39,60.2,330

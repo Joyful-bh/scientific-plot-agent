@@ -1,0 +1,17 @@
+treatment_group,timepoint,response_rate,se,n
+Control,baseline,19.8,3.47,120
+Control,week4,22.9,3.99,120
+Control,week8,21.5,3.62,120
+Control,week12,25.2,3.98,120
+Drug-A 10mg,baseline,19.0,3.54,115
+Drug-A 10mg,week4,35.5,4.55,115
+Drug-A 10mg,week8,42.3,4.79,115
+Drug-A 10mg,week12,48.0,4.58,115
+Drug-A 20mg,baseline,19.9,3.62,118
+Drug-A 20mg,week4,41.2,4.35,118
+Drug-A 20mg,week8,54.6,4.67,118
+Drug-A 20mg,week12,60.6,4.47,118
+Drug-B 15mg,baseline,20.4,3.85,112
+Drug-B 15mg,week4,38.8,4.73,112
+Drug-B 15mg,week8,50.6,4.57,112
+Drug-B 15mg,week12,57.9,4.71,112

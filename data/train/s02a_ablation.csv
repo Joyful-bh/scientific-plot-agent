@@ -1,0 +1,7 @@
+variant,Accuracy,F1
+Full model,93.19,92.49
+w/o attention,89.66,89.04
+w/o position emb,91.78,91.16
+w/o layer norm,91.0,90.51
+w/o residual,88.66,88.01
+w/o pre-training,86.2,85.74

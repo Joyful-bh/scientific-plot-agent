@@ -1,0 +1,13 @@
+approach,n_train,macro_f1
+Baseline,500,55.87
+Baseline,1000,58.09
+Baseline,2000,61.47
+Baseline,5000,67.66
+Baseline,10000,69.92
+Baseline,20000,73.58
+Our method,500,63.2
+Our method,1000,67.36
+Our method,2000,69.62
+Our method,5000,74.62
+Our method,10000,79.17
+Our method,20000,83.17

@@ -1,0 +1,6 @@
+variant,mAP
+Full,48.16
+-FPN,46.22
+-data aug,44.64
+-multi-scale,46.57
+-deformable conv,44.01

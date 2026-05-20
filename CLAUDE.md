@@ -23,7 +23,7 @@
 
 ### 严格禁止的跨模块行为
 
-- model/ 不得 import tools/ 或 system/ 的任何内容
+- model/ 不得 import tools/ 中的渲染逻辑（renderer.py、themes.py、layout.py），但可以 import tools/loader.py 中的 DataContext 格式化函数。
 - tools/ 不得 import model/ 的任何内容
 - ui/ 只允许 import system/agent.py，不得直接调用 model/ 或 tools/
 - 任何模块都可以 import schema.py

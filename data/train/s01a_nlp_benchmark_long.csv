@@ -1,0 +1,17 @@
+approach,evaluation_set,准确率,se
+BERT-base,SST-2,93.27,0.46
+BERT-base,CoLA,62.36,0.62
+BERT-base,RTE,82.59,0.79
+BERT-base,QNLI,91.76,0.67
+RoBERTa-base,SST-2,94.13,0.47
+RoBERTa-base,CoLA,63.37,0.76
+RoBERTa-base,RTE,84.64,0.69
+RoBERTa-base,QNLI,92.94,0.34
+XLNet-base,SST-2,93.85,0.24
+XLNet-base,CoLA,63.13,0.58
+XLNet-base,RTE,84.06,0.41
+XLNet-base,QNLI,92.77,0.74
+DeBERTa-base,SST-2,95.78,0.32
+DeBERTa-base,CoLA,64.47,0.23
+DeBERTa-base,RTE,85.15,0.61
+DeBERTa-base,QNLI,94.24,0.78

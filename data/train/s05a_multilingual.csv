@@ -1,0 +1,13 @@
+baseline,language,acc
+mBERT,English,90.11
+XLM-R,English,95.18
+mBERT,German,83.36
+XLM-R,German,86.79
+mBERT,French,81.64
+XLM-R,French,86.01
+mBERT,Chinese,80.75
+XLM-R,Chinese,84.7
+mBERT,Arabic,72.09
+XLM-R,Arabic,76.36
+mBERT,Swahili,61.47
+XLM-R,Swahili,65.5

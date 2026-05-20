@@ -10,7 +10,8 @@
 scientific-plot-agent/
 ├── schema.py              # 全局 Schema 定义（唯一共享契约）
 ├── model/
-│   └── generator.py       # A线：generate_spec()，当前为 Plan B（DeepSeek API）
+│   ├── generator.py       # A线：generate_spec()，当前为 Plan B（DeepSeek API）
+│   └── prompts.py         # A线：SYSTEM_FIRST_FINETUNE + format_user_message()
 ├── tools/
 │   ├── loader.py          # B线：DataLoader，CSV 解析 + 数据摘要
 │   ├── themes.py          # B线：ThemeConfig 静态风格注册表
@@ -22,10 +23,20 @@ scientific-plot-agent/
 │   └── agent.py           # C线：PlotAgent 主循环
 ├── ui/
 │   └── app.py             # C线：Gradio 界面
+├── scripts/
+│   ├── run_synthesis.py   # 一键运行完整训练数据合成流水线
+│   ├── gen_csv.py         # 步骤1：生成 51 个场景训练 CSV
+│   ├── gen_pairs.py       # 步骤2：调用 DeepSeek API 合成配对
+│   ├── validate_pairs.py  # 步骤3：三级校验过滤
+│   ├── pack_finetune.py   # 步骤4：打包为 Qwen3 微调 JSONL
+│   └── 需要合成的场景.md   # 34 个训练场景设计文档
 ├── data/
-│   ├── example_bar.csv    # 示例数据：6 模型 × 4 数据集准确率
-│   ├── example_line.csv   # 示例数据：训练曲线
-│   └── placeholder.png    # 占位图（历史保留）
+│   ├── example_bar.csv    # 示例数据（提交到 git）
+│   ├── example_line.csv   # 示例数据（提交到 git）
+│   ├── long_*.csv / wide_*.csv  # 集成测试用数据
+│   ├── train/             # 微调训练原始 CSV（51 个，由 gen_csv.py 生成）
+│   ├── pairs/             # 合成中间文件（raw/valid/reject JSONL）
+│   └── finetune/          # 最终微调数据（train.jsonl / val.jsonl）
 ├── tests/                 # 单元测试 + 集成测试
 ├── conftest.py            # pytest 全局配置
 ├── .env                   # API Key 配置（不提交，见 .gitignore）
@@ -60,6 +71,21 @@ python ui/app.py
 浏览器打开 `http://localhost:7860`，上传 `data/example_bar.csv`，然后输入：
 
 > 画一张柱状图，对比各模型在不同数据集上的准确率，使用 nature 风格，按数据集分组
+
+### 4. 合成 A线微调训练数据（可选）
+
+在 `.env` 中配置好 `DEEPSEEK_API_KEY` 后：
+
+```bash
+# 快速测试（只处理 2 个 CSV，跳过渲染校验）
+python scripts/run_synthesis.py --limit 2 --no-render
+
+# 完整运行（约 51 个 CSV × 5 条 = 255 条配对）
+python scripts/run_synthesis.py --model deepseek-chat
+```
+
+四步流水线自动依次执行：生成CSV → 合成配对 → 校验过滤 → 打包 JSONL。
+最终训练集输出到 `data/finetune/train.jsonl`，验证集到 `data/finetune/val.jsonl`。
 
 ---
 
@@ -134,30 +160,34 @@ UI 功能：
 | `params_stacked` | `false` | 堆叠柱状图 | bar |
 | `params_sort` | `null` | 排序：`"asc"` / `"desc"` | bar |
 | `params_show_values` | `false` | 柱顶显示数值 | bar |
-| `params_hatch` | `null` | 柱子纹理：`"/"` `"\\"` `"\|"` `"-"` 等 | bar |
-| `params_edgecolor` | `null` | 纹理边框颜色 | bar |
-| `params_hatch_linewidth` | `0.5` | 纹理线宽 | bar |
+| `style_hatch` | `null` | 柱子纹理：单字符串 `"/"` 或列表 `["/","\\","\|"]`（多分组轮换） | bar |
+| `style_edgecolor` | `null` | 柱子/纹理边框颜色，如 `"white"` / `"black"` | bar |
+| `style_hatch_linewidth` | `null` | 纹理线宽（`null`=主题默认 0.5） | bar |
 | `params_show_markers` | `true` | 是否显示数据点标记（布尔值） | line |
 | `params_smooth` | `false` | 平滑曲线 | line |
 | `params_linestyle` | `"solid"` | 线型：`"solid"` / `"dashed"` / `"dotted"` / `"dashdot"` | line |
 | `params_line_colors` | `null` | 自定义颜色列表，覆盖主题配色 | line |
 | `params_marker_style` | `null` | 标记样式：`"o"` `"s"` `"^"` `"D"` 等 | line, scatter |
-| `params_marker_size` | `4` | 标记大小 | line, scatter |
+| `params_marker_size` | `null` | 标记大小；`null`=按数据密度自动计算 | line, scatter |
 | `params_alpha` | `0.8` | 透明度 | scatter |
 | `params_show_regression` | `false` | 显示回归线 | scatter |
 | `params_show_points` | `"outliers"` | 数据点显示：`"all"` / `"outliers"` / `"none"` | box |
 | `params_notch` | `false` | 缺口箱线图 | box |
 | `params_annot` | `true` | 显示数值标注 | heatmap |
 | `params_annot_fmt` | `".2f"` | 单元格数值格式字符串（与 `params_annot` 配套使用） | heatmap |
+| `params_heatmap_value` | `null` | 热力值列名；`null`=自动取第一个非轴数值列 | heatmap |
 
 ---
 
 ## 运行测试
 
 ```bash
-# 全量测试（含真实 API 调用，需设置 DEEPSEEK_API_KEY）
+# 全量测试（含 API 调用，需设置 DEEPSEEK_API_KEY）
 pytest tests/ -v
 
-# 跳过 API 测试（无 key 时）
+# 无 API Key 时跳过需要联网的测试
 pytest tests/ -v -k "not (first_round or delta_round or pipeline)"
+
+# 只跑格式覆盖集成测试（不需要 API Key）
+pytest tests/test_format_coverage.py -v
 ```

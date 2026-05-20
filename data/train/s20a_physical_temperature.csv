@@ -1,0 +1,25 @@
+catalyst,temperature_C,reaction_rate
+Catalyst-A,20,1.1224
+Catalyst-A,30,1.2856
+Catalyst-A,40,1.3753
+Catalyst-A,50,1.4413
+Catalyst-A,60,1.6548
+Catalyst-A,70,1.7394
+Catalyst-A,80,1.8428
+Catalyst-A,90,2.0224
+Catalyst-B,20,0.8257
+Catalyst-B,30,0.8633
+Catalyst-B,40,0.8954
+Catalyst-B,50,0.9705
+Catalyst-B,60,0.9748
+Catalyst-B,70,1.0716
+Catalyst-B,80,1.1398
+Catalyst-B,90,1.1859
+No catalyst,20,0.3039
+No catalyst,30,0.3281
+No catalyst,40,0.3821
+No catalyst,50,0.4285
+No catalyst,60,0.4307
+No catalyst,70,0.5476
+No catalyst,80,0.538
+No catalyst,90,0.6509

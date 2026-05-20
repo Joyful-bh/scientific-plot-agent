@@ -1,0 +1,8 @@
+method,top1_acc
+Baseline,74.33
++RandomCrop,75.92
++ColorJitter,75.68
++Mixup,76.38
++CutMix,76.52
++RandomCrop+ColorJitter,77.27
++all augmentations,78.41

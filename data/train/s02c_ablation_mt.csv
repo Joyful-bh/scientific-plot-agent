@@ -1,0 +1,5 @@
+configuration,BLEU,ROUGE-L,latency_ms
+Full,34.26,58.54,121.1
+No cross-attn,32.24,57.45,103.9
+No self-attn,31.51,56.43,97.5
+No FFN,33.43,57.88,111.3
