@@ -60,8 +60,8 @@ _SYSTEM_FIRST = """\
 - data_source: 数据摘要末尾"缓存key"的值（格式：cache://xxxxxxxx）
 - data_x: X轴列名（字符串，从数据摘要的列名中选）
 - data_y: Y轴列名字符串，或列名字符串列表（如需同时展示多列：["acc","f1"]）
-- style_theme: 视觉风格，从 [clean, vivid, nature, ieee, morandi, dark, macaron, mondrian, memphis, rococo, dunhuang, lofi, science_blue, nature_scatter, wu_low_sat] 中选
-  · clean=简洁灰调  vivid=高饱和鲜艳  nature=Nature期刊风  ieee=IEEE论文风  morandi=莫兰迪低饱和  dark=深色背景  macaron=马卡龙轻快 mondrian=蒙德里安高对比度  memphis=高饱和撞色  rococo=柔色浅金  dunhuang=浓郁矿物色  lofi=复古高对比  science_blue=期刊单色风格  nature_scatter=期刊复色风格  morandi_light=低饱和高亮，更加通用的莫兰迪配色
+- style_theme: 视觉风格，从 [normal, morandi,  macaron, bright, rococo, earth, science, nature] 中选
+  · normal=简洁常规柔和  morandi=低饱和莫兰迪  nature=Nature期刊暖色  science=Science期刊冷色  macaron=马卡龙轻快色调  bright=高对比度鲜艳  rococo=洛可可低对比淡色  earth=深沉大地色
 
 【数据相关可选字段】
 - data_group_by: 分组列名（按类别绘制分组/堆叠图时使用）
