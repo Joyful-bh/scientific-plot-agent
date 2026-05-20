@@ -141,7 +141,7 @@ UI 功能：
 | `data_source` | str | 数据缓存 key（`cache://xxxxxxxx`），由 DataLoader 生成 |
 | `data_x` | str | X 轴列名（字符串，非列的值，只能是单列） |
 | `data_y` | str 或 list[str] | Y 轴列名，单列或多列名列表（非列的值） |
-| `style_theme` | str | 风格主题：`clean` / `vivid` / `nature` / `ieee` / `morandi` / `dark` |
+| `style_theme` | str | 风格主题：`normal` / `morandi` / `macaron` / `bright` / `rococo` / `earth` / `science` / `nature` |
 
 ### 可选字段（含默认值）
 

@@ -27,22 +27,22 @@ _FEW_SHOT = """\
 
 【示例2 首轮 · 折线图多列Y】
 数据摘要：缓存key：cache://b2c3d4e5，列：epoch（数值型）、train_loss（数值型）、val_loss（数值型）
-用户需求：画训练曲线，同时展示train_loss和val_loss，clean风格，平滑一下
-输出：{"chart_type":"line","data_source":"cache://b2c3d4e5","data_x":"epoch","data_y":["train_loss","val_loss"],"style_theme":"clean","params_smooth":true,"label_title":"训练曲线","label_x":"Epoch","label_y":"Loss"}
+用户需求：画训练曲线，同时展示train_loss和val_loss，normal风格，平滑一下
+输出：{"chart_type":"line","data_source":"cache://b2c3d4e5","data_x":"epoch","data_y":["train_loss","val_loss"],"style_theme":"normal","params_smooth":true,"label_title":"训练曲线","label_x":"Epoch","label_y":"Loss"}
 
 【示例3 首轮 · 散点图+回归线】
 数据摘要：缓存key：cache://c3d4e5f6，列：param_size（数值型）、accuracy（数值型）、method（类别型）
-用户需求：scatter图看模型参数量和准确率的关系，加回归线，vivid风格
-输出：{"chart_type":"scatter","data_source":"cache://c3d4e5f6","data_x":"param_size","data_y":"accuracy","style_theme":"vivid","data_group_by":"method","params_show_regression":true,"label_x":"参数量（M）","label_y":"准确率"}
+用户需求：scatter图看模型参数量和准确率的关系，加回归线，bright风格
+输出：{"chart_type":"scatter","data_source":"cache://c3d4e5f6","data_x":"param_size","data_y":"accuracy","style_theme":"bright","data_group_by":"method","params_show_regression":true,"label_x":"参数量（M）","label_y":"准确率"}
 
 【示例4 首轮 · 折线图+自定义颜色】
 数据摘要：缓存key：cache://d4e5f6a7，列：method（类别型，唯一值6个）、dataset（类别型，唯一值4个）、accuracy（数值型）
-用户需求：折线图，X轴是model，按dataset分组画多条线，颜色依次用红#E64B35、蓝#4DBBD5、绿#00A087、深蓝#3C5488，clean风格
-输出：{"chart_type":"line","data_source":"cache://d4e5f6a7","data_x":"method","data_y":"accuracy","data_group_by":"dataset","style_theme":"clean","params_line_colors":["#E64B35","#4DBBD5","#00A087","#3C5488"],"label_x":"Model","label_y":"Accuracy (%)"}
+用户需求：折线图，X轴是model，按dataset分组画多条线，颜色依次用红#E64B35、蓝#4DBBD5、绿#00A087、深蓝#3C5488，morandi风格
+输出：{"chart_type":"line","data_source":"cache://d4e5f6a7","data_x":"method","data_y":"accuracy","data_group_by":"dataset","style_theme":"morandi","params_line_colors":["#E64B35","#4DBBD5","#00A087","#3C5488"],"label_x":"Model","label_y":"Accuracy (%)"}
 
 【示例5 修改轮 · 换风格】
-修改需求：换成ieee风格
-输出：{"style_theme":"ieee"}
+修改需求：换成science风格
+输出：{"style_theme":"science"}
 
 【示例6 修改轮 · 调整坐标轴】
 修改需求：Y轴从80开始，最高到100，X轴标签旋转45度
@@ -148,7 +148,7 @@ _SYSTEM_DELTA = """\
 数据: data_x · data_y · data_group_by · data_error · data_filter
 标签: label_title · label_x · label_y
 坐标轴: axes_y_min · axes_y_max · axes_x_tick_rotation · axes_x_rotate_labels(bool，标签拥挤时true=旋转/false=缩小字号) · axes_y_scale("linear"/"log") · legend_loc("inside"/"outside_right"/"none")
-风格: style_theme[clean/vivid/nature/ieee/morandi/dark] · style_palette_override[morandi/nature_d/tab10/coolwarm，只能填这四个字符串之一]
+风格: style_theme[normal/morandi/macaron/bright/rococo/earth/science/nature] · style_palette_override[morandi/nature_d/tab10/coolwarm，只能填这四个字符串之一]
 主题覆写: style_hatch(⚠️必须是字符串或列表非布尔，仅bar；单串="/",多分组轮换=["/","\\","|"]) · style_edgecolor(仅bar) · style_hatch_linewidth · style_grid(bool) · style_line_width · style_font_size · style_dpi · style_legend_frameon(bool) · style_bg_color · style_text_color · style_aspect_ratio · style_figure_width · style_font_family · style_spines(列表)
 bar参数: params_orientation · params_stacked · params_sort(按Y值排序；分组图按均值排序) · params_show_values
 line参数: params_show_markers(bool) · params_marker_style(形状字符串) · params_marker_size(null=自动) · params_smooth · params_linestyle · params_line_colors(颜色列表)
