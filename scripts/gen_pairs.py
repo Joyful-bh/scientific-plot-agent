@@ -147,6 +147,7 @@ def _build_synthesis_system_prompt() -> str:
    · 至少 1 条使用坐标轴参数（axes_y_min 或 axes_x_rotate_labels 等）
    · 至少 1 条使用 data_filter 按类别或数值条件筛选数据行（若数据有合适的分类/数值列）
      示例：data_filter="benchmark == 'MMLU'"  data_filter="epoch >= 10"
+     列名含连字符/空格等特殊字符时必须用反引号：data_filter="`SST-2` > 93"
    · 适当使用 params_sort / params_show_values / params_smooth / params_stacked 等图表专属参数
 
 5. user_input 必须用中文，长度 15-120 字，禁止用相同的句式重复

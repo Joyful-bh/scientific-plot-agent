@@ -39,7 +39,8 @@ VALID_PAIRS_PATH = PAIRS_DIR / "valid_pairs.jsonl"
 REJECT_LOG_PATH  = PAIRS_DIR / "reject_log.jsonl"
 
 # data_x / data_y 等可能引用数据列的字段
-_COL_REF_FIELDS = ("data_x", "data_group_by", "data_error", "params_heatmap_value")
+# ⚠️ data_x 不在此处：heatmap 宽表的 data_x 是概念名而非列名，已在 _check_col_exists 中单独处理
+_COL_REF_FIELDS = ("data_group_by", "data_error", "params_heatmap_value")
 
 
 # ---------------------------------------------------------------------------

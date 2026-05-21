@@ -42,6 +42,7 @@ _FIELD_SPEC: str = f"""\
   · 列名直接写，字符串值需加引号：'method == "BERT"'
   · 多条件：'accuracy > 0.8 and dataset != "CoLA"'
   · 数值比较：'epoch >= 10'；null=不过滤（使用全部数据）
+  · ⚠️ 列名含连字符/空格等特殊字符时，必须用反引号括起：'`SST-2` > 93'
 
 【标签可选字段】
 - label_title: 图表标题
@@ -59,6 +60,7 @@ _FIELD_SPEC: str = f"""\
 - style_palette_override: 切换预设配色方案，值只能是以下字符串之一：
     {_PO}
   ⚠️ 只能填预设名称字符串，不能填颜色列表
+  ⚠️ 与 style_theme 完全不同：style_theme 控制整体视觉风格（字体/背景/线宽等），style_palette_override 仅替换颜色序列；两者不能互换填写
 - style_custom_palette: 自定义颜色列表，适用所有图表类型，优先级高于 style_palette_override
     值为十六进制颜色字符串列表：["#E64B35","#4DBBD5","#00A087","#3C5488"]
   ⚠️ 不能填预设名称字符串
