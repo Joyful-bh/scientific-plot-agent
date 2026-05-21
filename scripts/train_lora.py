@@ -90,7 +90,7 @@ GRAD_ACCUM          = 1   # 单卡时改为 2；2 卡时保持 1
 MAX_SEQ_LENGTH      = 2048    # system+user+assistant 总长度上限
 
 # 路径
-DEFAULT_BASE_MODEL  = "Qwen/Qwen3-1.7B"
+DEFAULT_BASE_MODEL  = "/mnt/data/model/Qwen3-1.7B"
 TRAIN_PATH          = Path("data/finetune/train.jsonl")
 VAL_PATH            = Path("data/finetune/val.jsonl")
 DEFAULT_OUTPUT_DIR  = Path("output/lora")
@@ -218,6 +218,7 @@ def train(
             per_device_eval_batch_size=PER_DEVICE_BATCH,
             gradient_accumulation_steps=GRAD_ACCUM,
             gradient_checkpointing=True,
+            gradient_checkpointing_kwargs={"use_reentrant": False},
 
             # 优化器
             learning_rate=lr,

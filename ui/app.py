@@ -6,11 +6,18 @@ C线 UI：Gradio 界面
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
 # 将项目根目录加入 sys.path，使 `python ui/app.py` 和 `python -m ui.app` 均可用
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
+# 必须在 import gradio 之前设置，否则 Gradio 已使用默认 /tmp/gradio 初始化。
+# 共享服务器上 /tmp/gradio 通常没有写权限，改为项目内 output/tmp。
+_GRADIO_TMP = Path(__file__).parent.parent / "output" / "tmp"
+_GRADIO_TMP.mkdir(parents=True, exist_ok=True)
+os.environ.setdefault("GRADIO_TEMP_DIR", str(_GRADIO_TMP))
 
 import gradio as gr
 
@@ -30,6 +37,18 @@ def on_upload(file) -> str:
         return ""
     try:
         context = agent.load_data(file.name)
+        return context
+    except Exception as exc:
+        return f"[错误] 数据加载失败：{exc}"
+
+
+def on_path_input(path: str) -> str:
+    """直接输入服务器端文件路径后加载数据，返回 DataContext 摘要。"""
+    path = path.strip() if path else ""
+    if not path:
+        return ""
+    try:
+        context = agent.load_data(path)
         return context
     except Exception as exc:
         return f"[错误] 数据加载失败：{exc}"
@@ -115,14 +134,19 @@ with gr.Blocks(title="Scientific Plot Agent") as demo:
         # 左侧列：数据上传 + 数据摘要
         with gr.Column(scale=1):
             file_upload = gr.File(
-                label="上传数据文件（CSV）",
+                label="上传数据文件（CSV，本地文件）",
                 file_types=[".csv"],
+            )
+            server_path = gr.Textbox(
+                label="服务器文件路径（输入后按 Enter）",
+                placeholder="/mnt/data/xxx.csv  或相对路径 data/train/xxx.csv",
+                lines=1,
             )
             data_summary = gr.Textbox(
                 label="数据摘要",
                 lines=10,
                 interactive=False,
-                placeholder="上传文件后自动显示数据摘要…",
+                placeholder="上传文件或输入路径后自动显示数据摘要…",
             )
 
         # 右侧列：图表预览 + 输入区
@@ -178,6 +202,12 @@ with gr.Blocks(title="Scientific Plot Agent") as demo:
     file_upload.change(
         fn=on_upload,
         inputs=[file_upload],
+        outputs=[data_summary],
+    )
+
+    server_path.submit(
+        fn=on_path_input,
+        inputs=[server_path],
         outputs=[data_summary],
     )
 
