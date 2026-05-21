@@ -15,6 +15,9 @@ from tools.loader import DataLoadError, load_data
 from tools.renderer import RenderError, render_plot
 
 
+_MAX_RENDER_RETRIES = 2  # 渲染失败时最多自修正重试次数
+
+
 @dataclass
 class AgentResponse:
     """process_input() 的返回值结构。"""
@@ -57,7 +60,7 @@ class PlotAgent:
         self.current_cache_key = cache_key
         return data_context
 
-    def process_input(self, user_input: str) -> AgentResponse:
+    def process_input(self, user_input: str, output_format: str = "png") -> AgentResponse:
         """
         处理用户自然语言输入，驱动完整的绘图流水线。
 
@@ -120,16 +123,39 @@ class PlotAgent:
             )
 
         self.current_spec = full_spec
+        full_spec["output_format"] = output_format
 
         # data_source 优先使用缓存键，若无则从 spec 中取
         effective_source = data_source or full_spec.get("data_source", "")
 
-        try:
-            image_path = render_plot(full_spec, effective_source)
-        except (RenderError, Exception) as exc:
+        image_path: str | None = None
+        last_error: str | None = None
+        for attempt in range(_MAX_RENDER_RETRIES + 1):
+            try:
+                image_path = render_plot(full_spec, effective_source)
+                break
+            except (RenderError, Exception) as exc:
+                last_error = str(exc)
+                if attempt >= _MAX_RENDER_RETRIES:
+                    break
+                # 把渲染错误反馈给模型，以 delta 模式自修正 spec
+                try:
+                    correction = generate_spec(
+                        f"渲染报错，请修正PlotSpec：{exc}",
+                        data_context,
+                        full_spec,
+                    )
+                    candidate = fill_defaults(merge_delta(full_spec, correction))
+                    if validate(candidate).ok:
+                        full_spec = candidate
+                        self.current_spec = full_spec
+                except Exception:
+                    break  # 修正推理本身失败，不再重试
+
+        if image_path is None:
             return AgentResponse(
                 status="error",
-                message=f"渲染失败：{exc}",
+                message=f"渲染失败（已重试 {_MAX_RENDER_RETRIES} 次）：{last_error}",
                 current_spec=full_spec,
             )
 
@@ -139,7 +165,7 @@ class PlotAgent:
             current_spec=full_spec,
         )
 
-    def render_from_spec(self, spec_json: str) -> AgentResponse:
+    def render_from_spec(self, spec_json: str, output_format: str = "png") -> AgentResponse:
         """
         用手动编辑的 PlotSpec JSON 字符串直接渲染，跳过 generate_spec 步骤。
         渲染成功后同步更新 current_spec，后续 LLM 轮次的 delta 以此为基础。
@@ -168,6 +194,7 @@ class PlotAgent:
                 current_spec=spec,
             )
 
+        full_spec["output_format"] = output_format
         effective_source = self.current_cache_key or full_spec.get("data_source", "")
         try:
             image_path = render_plot(full_spec, effective_source)

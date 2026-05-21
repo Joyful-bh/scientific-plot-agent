@@ -54,9 +54,10 @@ scientific-plot-agent/
 pip install -r requirements.txt
 ```
 
-### 2. 配置 API Key
+### 2. 配置 API Key（仅合成训练数据时需要）
 
-在项目根目录创建 `.env` 文件，填入 DeepSeek API Key：
+主推理路径（Plan A）使用本地 Qwen3-1.7B LoRA 模型，无需 API Key。
+如需重新合成训练数据，在项目根目录创建 `.env` 文件：
 
 ```
 DEEPSEEK_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxx
@@ -96,9 +97,7 @@ python scripts/run_synthesis.py --skip-csv --model deepseek-chat
 
 ### A线（`model/generator.py`）
 
-**当前状态**：Plan B 实现——通过 DeepSeek API（OpenAI 兼容接口，模型 `deepseek-chat`）将用户意图转化为 PlotSpec JSON。首轮和修改轮使用不同的 system prompt，few-shot 示例内嵌在 prompt 中，已可正常运行。
-
-Plan A（最终目标）：Qwen3-1.5B LoRA 微调本地模型，尚未完成。替换时只改 `generator.py` 函数体，接口签名不变；训练数据合成流水线（`scripts/`）已就绪。
+**当前状态**：Plan A 实现——本地 Qwen3-1.7B + LoRA adapter（`output/lora/checkpoint-198`）推理，在服务器（`/mnt/data/model/Qwen3-1.7B`）上运行。首轮和修改轮使用不同的 system prompt，模型权重从微调训练数据中学习字段映射，无需 few-shot 示例。
 
 ```python
 def generate_spec(
@@ -109,10 +108,11 @@ def generate_spec(
     ...
 ```
 
-- 首轮（`current_spec=None`）：返回包含所有 `REQUIRED_FIELDS` 的完整 PlotSpec dict。
-- 修改轮（`current_spec` 不为 None）：返回仅含变更字段的 delta dict，由 `merger.py` 合并。
+- 首轮（`current_spec=None`）：模型输出 `{"tool":"create_plot","arguments":{...完整PlotSpec...}}`，parser 提取 `arguments` 后返回 dict。
+- 修改轮（`current_spec` 不为 None）：模型输出 `{"tool":"update_plot","arguments":{...仅变更字段...}}`，parser 提取 `arguments`，由 `merger.py` 合并到当前 spec。
+- 两种格式均不含 `data_source` 字段，由 `agent.py` 自动从 `data_context` 中提取缓存 key 注入。
 - **只替换函数体，不修改签名。**
-- 调试：设置 `DEBUG = True`（默认开启）可在终端打印每次 API 的原始响应。
+- 调试：设置 `DEBUG = True`（默认开启）可在终端打印每次推理的原始响应及工具名。
 
 ### B线（`tools/renderer.py`）
 
@@ -133,12 +133,11 @@ def render_plot(spec: dict, data_source: str) -> str: ...
 **当前状态**：Agent 主循环、校验、delta 合并、Gradio UI 均已完整实现。
 
 UI 功能：
-- 上传 CSV → 展示数据摘要
+- 上传 CSV 或输入服务器端文件路径 → 展示数据摘要
 - 自然语言输入 → 调用 LLM → 渲染图表
 - 底部 PlotSpec 编辑区：**可直接修改 JSON 字段，点击「重新渲染」即时生效**（不经过 LLM，由 `render_from_spec()` 处理）
+- 导出格式选择器（PNG / PDF）：由用户在 UI 中选择，与 LLM 无关；PNG 直接在预览区显示，PDF 在状态栏提示文件名并可通过导出按钮下载
 - 重置按钮清空所有状态
-
-待完善：导出 PNG 按钮尚未绑定实际文件路径（`app.py` 中有注释说明实现方式）；发送后不自动清空输入框（`app.py` 中同样有注释说明）。
 
 ---
 

@@ -142,7 +142,17 @@ def generate_spec(
         print(f"[Qwen3 LoRA 原始响应]:\n{raw_text}")
         print(f"{'='*50}\n")
 
-    result: dict = json.loads(_strip_markdown(raw_text))
+    parsed: dict = json.loads(_strip_markdown(raw_text))
+
+    # 从工具调用包装结构中提取 arguments
+    if "tool" in parsed and "arguments" in parsed:
+        tool_name = parsed["tool"]
+        result = parsed["arguments"]
+        if DEBUG:
+            print(f"[A线] tool={tool_name}")
+    else:
+        # 兼容旧格式（裸 PlotSpec），避免格式迁移期间推理完全失败
+        result = parsed
 
     # 首轮推理时注入 data_source（Plan A 模型不输出该字段，由此处自动注入）
     if current_spec is None and "data_source" not in result:

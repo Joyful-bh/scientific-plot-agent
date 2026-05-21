@@ -16,13 +16,17 @@ scripts/pack_finetune.py
       "messages": [
         {"role": "system",    "content": "<根据 record_type 选择的系统提示词>"},
         {"role": "user",      "content": "<DataContext>\\n\\n用户需求：...\\n输出：/no_think"},
-        {"role": "assistant", "content": "{plotspec 或 delta json}"}
+        {"role": "assistant", "content": "{\"tool\":\"create_plot\",\"arguments\":{...plotspec...}}"}
       ]
     }
 
+assistant 内容为工具调用格式：
+    首轮（record_type="first"）：{"tool":"create_plot","arguments":{完整 PlotSpec（不含 data_source）}}
+    修改轮（record_type="delta"）：{"tool":"update_plot","arguments":{仅含变更字段的 delta dict}}
+
 系统提示词按记录类型（record_type）动态选择：
-    "first" → SYSTEM_FIRST_FINETUNE（输出完整 PlotSpec）
-    "delta" → SYSTEM_DELTA_FINETUNE（输出仅含变更字段的 delta dict）
+    "first" → SYSTEM_FIRST_FINETUNE（要求输出 create_plot 工具调用）
+    "delta" → SYSTEM_DELTA_FINETUNE（要求输出 update_plot 工具调用）
 
 valid_pairs.jsonl 字段（首轮）：record_type, user_input, data_context, plotspec, csv_path
 delta_pairs.jsonl 字段（修改轮）：record_type, user_input, data_context, current_spec, plotspec(delta), csv_path
@@ -89,6 +93,10 @@ def build_messages(
     系统提示词根据 record_type 从 _SYSTEM_MAP 中选取，内嵌到每条记录，
     使不同类型的记录（首轮/修改轮）各自携带正确的提示词，无需训练时统一注入。
 
+    assistant message 使用工具调用格式：
+        首轮：{"tool":"create_plot","arguments":{...完整 PlotSpec...}}
+        修改轮：{"tool":"update_plot","arguments":{...delta 字段...}}
+
     Args:
         user_input:   用户请求（首轮或修改请求）。
         data_context: 数据摘要字符串（由 tools.loader._build_context 生成）。
@@ -107,13 +115,17 @@ def build_messages(
     else:
         user_content = format_user_message(user_input, data_context)
 
+    tool_name = "create_plot" if record_type == "first" else "update_plot"
+    assistant_content = json.dumps(
+        {"tool": tool_name, "arguments": plotspec},
+        ensure_ascii=False, separators=(",", ":"),
+    )
+
     return {
         "messages": [
             {"role": "system",    "content": system_prompt},
             {"role": "user",      "content": user_content},
-            {"role": "assistant", "content": json.dumps(
-                plotspec, ensure_ascii=False, separators=(",", ":"),
-            )},
+            {"role": "assistant", "content": assistant_content},
         ]
     }
 

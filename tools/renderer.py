@@ -268,7 +268,9 @@ def render_plot(spec: dict, data_source: str) -> str:
         if chart_type not in RENDERERS:
             raise RenderError(f"不支持的图表类型：{chart_type}")
         fig = RENDERERS[chart_type](df=df, spec=spec, theme=theme, layout=layout)
-        out_path = _output_path(chart_type)
+        fmt = spec.get("output_format", "png")
+        out_path = _output_path(chart_type, fmt)
+        # PDF 是矢量格式，dpi 仅影响其中的栅格化元素（如渐变填充），正常传入即可
         fig.savefig(out_path, dpi=theme.dpi)
         plt.close(fig)
         return str(out_path)
@@ -597,11 +599,11 @@ def _ensure_output_dir() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def _output_path(chart_type: str) -> Path:
-    """生成带时间戳的输出文件路径。格式：output/plot_20240101_120000_bar.png"""
+def _output_path(chart_type: str, fmt: str = "png") -> Path:
+    """生成带时间戳的输出文件路径。格式：output/plot_20240101_120000_bar.{fmt}"""
     _ensure_output_dir()
     timestamp = time.strftime("%Y%m%d_%H%M%S")
-    return OUTPUT_DIR / f"plot_{timestamp}_{chart_type}.png"
+    return OUTPUT_DIR / f"plot_{timestamp}_{chart_type}.{fmt}"
 
 
 def _resolve_dataframe(data_source: str, spec: dict) -> pd.DataFrame:

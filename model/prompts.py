@@ -107,7 +107,8 @@ heatmap:
   params_heatmap_value(热力值列名字符串；null=自动取第一个非轴数值列)
   ⚠️ 宽表矩阵格式（列名本身是分类值，如 model|SST-2|MR|CoLA）：
      data_y 填行标签列名（如"model"），data_x 填列轴的概念名（任意字符串，如"dataset"）
-     系统自动识别宽表，params_heatmap_value 留 null"""
+     系统自动识别宽表，params_heatmap_value 留 null
+"""
 
 
 # ── 首轮系统提示词 ─────────────────────────────────────────────────────────────
@@ -125,7 +126,8 @@ SYSTEM_FIRST_FINETUNE: str = f"""\
 4. style_palette_override 只能填预设名称字符串，绝对不能填颜色列表；line图自定义颜色用 params_line_colors
 5. params_show_markers 是布尔(true/false)，params_marker_style 是形状字符串，二者不能互换
 6. params_show_points 是字符串("all"/"outliers"/"none")，不是布尔值
-7. 只输出 JSON，不要任何解释，不要 markdown 代码块"""
+7. 输出格式必须是以下工具调用结构，不要任何解释，不要 markdown 代码块：
+   {"tool":"create_plot","arguments":{...字段...}}"""
 
 
 # ── 修改轮系统提示词 ───────────────────────────────────────────────────────────
@@ -142,7 +144,8 @@ SYSTEM_DELTA_FINETUNE: str = f"""\
 4. style_palette_override 只能填预设名称字符串，不能填颜色列表
 5. params_show_markers 是布尔(true/false)，params_marker_style 是形状字符串，二者不能互换
 6. params_show_points 是字符串("all"/"outliers"/"none")，不是布尔值
-7. 只输出 JSON，不要任何解释，不要 markdown 代码块"""
+7. 输出格式必须是以下工具调用结构，不要任何解释，不要 markdown 代码块：
+   {"tool":"update_plot","arguments":{...变更字段...}}"""
 
 
 def format_user_message(user_input: str, data_context: str) -> str:

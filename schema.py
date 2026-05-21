@@ -25,6 +25,9 @@ STYLE_THEMES: list[str] = ["normal", "morandi",  "macaron", "bright", "rococo", 
 #   2. 在 tools/themes.py 的 PALETTES 字典里添加对应的颜色列表（或 cmap 字符串）
 PALETTE_OVERRIDES: list[str] = ["morandi", "nature_d", "tab10", "coolwarm"]
 
+# 输出文件格式（"png" 为位图；"pdf" 为矢量格式，适合论文投稿）
+OUTPUT_FORMATS: list[str] = ["png", "pdf"]
+
 # Required 字段：缺失时系统必须回问用户，不能继续渲染
 REQUIRED_FIELDS: list[str] = [
     "chart_type",
@@ -87,6 +90,8 @@ OPTIONAL_DEFAULTS: dict = {
     "params_annot": True,
     "params_annot_fmt": ".2f",
     "params_heatmap_value": None,   # 热力值列名；None=自动取第一个非轴数值列
+    # 输出
+    "output_format": "png",         # 输出格式："png"（默认）或 "pdf"（矢量，适合论文投稿）
 }
 
 # 每种图表类型对应的有效 params 字段
