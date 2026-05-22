@@ -102,7 +102,7 @@ def on_rerender(spec_json: str, fmt: str) -> tuple[str | None, str, str]:
 
 def on_backend_change(choice: str) -> str:
     """切换推理后端回调。"""
-    backend = "plan_a" if "A" in choice else "plan_b"
+    backend = "plan_a" if choice.startswith("Plan A") else "plan_b"
     try:
         agent.set_backend(backend)
         return f"已切换到 {choice}"
@@ -186,8 +186,8 @@ with gr.Blocks(title="Scientific Plot Agent") as demo:
 
     with gr.Row():
         backend_selector = gr.Radio(
-            choices=["Plan A（本地 LoRA）", "Plan B（DeepSeek API）"],
-            value="Plan A（本地 LoRA）",
+            choices=["Plan A（本地 LoRA）", "Plan B（远程 API）"],
+            value="Plan B（远程 API）",
             label="推理后端",
             scale=2,
         )

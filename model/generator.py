@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 # 后端选择
 # ---------------------------------------------------------------------------
 
-_backend: str = "plan_a"  # "plan_a" | "plan_b"
+_backend: str = "plan_b"  # "plan_a" | "plan_b"
 
 
 def set_backend(backend: str) -> None:
@@ -143,7 +143,7 @@ def _parse_tool_response(
 # ---------------------------------------------------------------------------
 
 _BASE_MODEL = "/mnt/data/model/Qwen3-1.7B"
-_LORA_CKPT = str(Path(__file__).parent.parent / "output" / "lora" / "checkpoint-198")
+_LORA_CKPT = str(Path(__file__).parent.parent / "output" / "lora" / "checkpoint-210")
 
 _tokenizer: AutoTokenizer | None = None
 _model: PeftModel | None = None
@@ -232,8 +232,8 @@ def _generate_plan_a(
 # Plan B：DeepSeek API（OpenAI 兼容接口）
 # ---------------------------------------------------------------------------
 
-_PLAN_B_BASE_URL = "https://api.deepseek.com"
-_PLAN_B_MODEL = "deepseek-chat"
+_PLAN_B_BASE_URL = "http://192.168.1.3:8000/v1"
+_PLAN_B_MODEL = "qwen3-plot-lora"
 
 
 def _generate_plan_b(
@@ -247,13 +247,9 @@ def _generate_plan_b(
     except ImportError as exc:
         raise RuntimeError("Plan B 需要安装 openai 库：pip install openai") from exc
 
-    api_key = os.environ.get("DEEPSEEK_API_KEY", "")
-    if not api_key:
-        raise RuntimeError(
-            "Plan B 需要设置环境变量 DEEPSEEK_API_KEY，"
-            "请在项目根目录的 .env 文件中配置后重启"
-        )
-
+    # 本地或私有 API 服务器通常不校验 Key；DEEPSEEK_API_KEY 未设置时用占位值
+    api_key = os.environ.get("DEEPSEEK_API_KEY") or "local"
+    
     client = OpenAI(api_key=api_key, base_url=_PLAN_B_BASE_URL)
 
     if current_spec is None:
