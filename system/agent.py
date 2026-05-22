@@ -9,7 +9,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-from model.generator import generate_spec
+from model.generator import generate_spec, get_backend, set_backend as _set_generator_backend
 from system.merger import fill_defaults, merge_delta
 from system.validator import validate
 from tools.loader import DataLoadError, load_data
@@ -232,6 +232,14 @@ class PlotAgent:
             image_path=image_path,
             current_spec=full_spec,
         )
+
+    def set_backend(self, backend: str) -> None:
+        """切换推理后端（"plan_a" 或 "plan_b"）。"""
+        _set_generator_backend(backend)
+
+    def get_backend(self) -> str:
+        """返回当前推理后端名称。"""
+        return get_backend()
 
     def reset(self) -> None:
         """清空当前状态，开始新的绘图任务。"""

@@ -100,6 +100,16 @@ def on_rerender(spec_json: str, fmt: str) -> tuple[str | None, str, str]:
         return None, f"[错误] {response.message}", spec_text
 
 
+def on_backend_change(choice: str) -> str:
+    """切换推理后端回调。"""
+    backend = "plan_a" if "A" in choice else "plan_b"
+    try:
+        agent.set_backend(backend)
+        return f"已切换到 {choice}"
+    except Exception as exc:
+        return f"[错误] 后端切换失败：{exc}"
+
+
 def on_reset() -> tuple[None, str, str, str]:
     """重置按钮回调，清空所有状态。"""
     agent.reset()
@@ -175,6 +185,12 @@ with gr.Blocks(title="Scientific Plot Agent") as demo:
         )
 
     with gr.Row():
+        backend_selector = gr.Radio(
+            choices=["Plan A（本地 LoRA）", "Plan B（DeepSeek API）"],
+            value="Plan A（本地 LoRA）",
+            label="推理后端",
+            scale=2,
+        )
         fmt_selector = gr.Radio(
             choices=["PNG", "PDF"],
             value="PNG",
@@ -188,6 +204,12 @@ with gr.Blocks(title="Scientific Plot Agent") as demo:
     # ---------------------------------------------------------------------------
     # 事件绑定
     # ---------------------------------------------------------------------------
+
+    backend_selector.change(
+        fn=on_backend_change,
+        inputs=[backend_selector],
+        outputs=[status_box],
+    )
 
     file_upload.change(
         fn=on_upload,
