@@ -24,11 +24,63 @@ from tools.themes import ThemeConfig, apply_style_overrides, apply_theme
 # 中文字体缺失会触发此 warning，属正常 fallback 行为，过滤掉
 warnings.filterwarnings("ignore", message=r"Glyph \d+ .* missing from font")
 
+# 按平台优先级排列的中文字体候选列表
+_CHINESE_FONT_CANDIDATES: list[str] = [
+    "Microsoft YaHei",      # Windows
+    "SimHei",               # Windows
+    "Noto Sans CJK SC",     # Linux (Noto)
+    "Noto Sans SC",         # Linux (Noto 备用名)
+    "WenQuanYi Micro Hei",  # Linux (文泉驿)
+    "WenQuanYi Zen Hei",    # Linux (文泉驿)
+    "PingFang SC",          # macOS
+    "Heiti SC",             # macOS
+    "STHeiti",              # macOS 旧版
+    "Source Han Sans SC",   # Adobe/Google 思源黑体
+    "Droid Sans Fallback",  # Android/Linux 兜底
+]
+
+_SERIF_FAMILIES: frozenset[str] = frozenset({"Times New Roman", "Georgia", "Palatino", "Garamond"})
+
+_cached_chinese_fonts: list[str] | None = None
+
 OUTPUT_DIR = Path("output")
 
 
 class RenderError(Exception):
     """图表渲染失败时抛出。"""
+
+
+# ---------------------------------------------------------------------------
+# 字体检测与配置
+# ---------------------------------------------------------------------------
+
+def _detect_chinese_fonts() -> list[str]:
+    """检测当前系统 Matplotlib 字体缓存中可用的中文字体（进程内只执行一次）。"""
+    global _cached_chinese_fonts
+    if _cached_chinese_fonts is None:
+        from matplotlib import font_manager as fm
+        available = {f.name for f in fm.fontManager.ttflist}
+        _cached_chinese_fonts = [f for f in _CHINESE_FONT_CANDIDATES if f in available]
+        if DEBUG and not _cached_chinese_fonts:
+            print("[Renderer] 警告：未检测到可用中文字体，标题/标签中的中文可能显示为方块")
+    return _cached_chinese_fonts
+
+
+def _setup_fonts(theme: "ThemeConfig") -> None:
+    """
+    按主题字体族配置 matplotlib rcParams，确保中文字符正常渲染。
+    - 无衬线主题（Arial 等）：将中文字体插入 font.sans-serif 首位
+    - 衬线主题（Times New Roman 等）：设置 font.family=serif 并在 font.serif 中注入中文字体
+    """
+    cjk = _detect_chinese_fonts()
+    if theme.font_family in _SERIF_FAMILIES:
+        mpl.rcParams["font.serif"] = cjk + [theme.font_family, "DejaVu Serif"]
+        mpl.rcParams["font.sans-serif"] = cjk + ["Arial", "DejaVu Sans"]
+        mpl.rcParams["font.family"] = "serif"
+    else:
+        mpl.rcParams["font.sans-serif"] = cjk + [theme.font_family, "DejaVu Sans"]
+        mpl.rcParams["font.family"] = "sans-serif"
+    mpl.rcParams["axes.unicode_minus"] = False
 
 
 # ---------------------------------------------------------------------------
@@ -258,11 +310,7 @@ def render_plot(spec: dict, data_source: str) -> str:
         df = _resolve_dataframe(data_source, spec)
         theme = apply_theme(spec["style_theme"], spec.get("style_palette_override"))
         theme = apply_style_overrides(theme, spec)
-        # Microsoft YaHei 放首位：同时覆盖中文和西文，不依赖 fallback 机制
-        # 主题字体（Arial/Times New Roman）排后，作为在 YaHei 缺字时的备用
-        mpl.rcParams["font.sans-serif"] = ["Microsoft YaHei", theme.font_family, "SimHei", "DejaVu Sans"]
-        mpl.rcParams["font.family"] = "sans-serif"
-        mpl.rcParams["axes.unicode_minus"] = False
+        _setup_fonts(theme)
         layout = compute_layout(df, spec, theme)
         chart_type = spec["chart_type"]
         if chart_type not in RENDERERS:
