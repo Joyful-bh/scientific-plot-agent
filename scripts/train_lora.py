@@ -56,10 +56,10 @@ from pathlib import Path
 import torch
 from datasets import load_dataset
 from peft import LoraConfig, TaskType, get_peft_model
+from torch.nn.utils.rnn import pad_sequence
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
-    DataCollatorForSeq2Seq,
     Trainer,
     TrainingArguments,
 )
@@ -87,12 +87,12 @@ LORA_TARGET_MODULES = [
 DEFAULT_EPOCHS      = 5
 DEFAULT_LR          = 1e-4
 # global batch 的设计目标是 16，通过 PER_DEVICE_BATCH × GRAD_ACCUM × GPU数 维持
-# 推荐 2 张 GPU：PER_DEVICE=8, ACCUM=1, global=16
-# 单卡备用：PER_DEVICE=8, ACCUM=2, global=16（同效果，慢一倍）
+# 注意：system prompt 约 2400 token，全序列平均 2800 token，MAX_SEQ_LENGTH 必须 >= 3500
+# 单卡 A100-40GB 参考配置：PER_DEVICE=4, ACCUM=4, global=16
 # 如果 OOM：PER_DEVICE 减半，ACCUM 翻倍（保持 global=16）
-PER_DEVICE_BATCH    = 8
-GRAD_ACCUM          = 1   # 单卡时改为 2；2 卡时保持 1
-MAX_SEQ_LENGTH      = 2048    # system+user+assistant 总长度上限
+PER_DEVICE_BATCH    = 4
+GRAD_ACCUM          = 4   # 单卡有效 batch = 4×4 = 16；2 卡时 ACCUM 改为 2
+MAX_SEQ_LENGTH      = 4096    # 必须大于最长序列（实测最大约 3067 token）
 
 # 路径
 DEFAULT_BASE_MODEL  = "/mnt/data/model/Qwen3-1.7B"
@@ -162,6 +162,25 @@ def build_dataset(tokenizer: AutoTokenizer) -> dict:
         remove_columns=["messages"],
         desc="应用 chat template 并计算 labels",
     )
+
+    # ── 诊断：检查 label 是否全部被 mask（如出现则说明 MAX_SEQ_LENGTH 不够）──
+    for split in dataset:
+        n_all_masked = sum(
+            1 for s in dataset[split] if all(l == -100 for l in s["labels"])
+        )
+        avg_valid = sum(
+            sum(1 for l in s["labels"] if l != -100) for s in dataset[split]
+        ) / len(dataset[split])
+        print(
+            f"[{split}] 全 mask 样本: {n_all_masked}/{len(dataset[split])}，"
+            f"平均有效 label token 数: {avg_valid:.1f}"
+        )
+        if n_all_masked > 0:
+            raise RuntimeError(
+                f"{n_all_masked} 条样本的 labels 全部为 -100，"
+                f"请增大 MAX_SEQ_LENGTH（当前 {MAX_SEQ_LENGTH}）"
+            )
+
     return dataset
 
 
@@ -226,16 +245,22 @@ def train(
         print(f"训练集：{len(dataset['train'])} 条  验证集：{len(dataset['validation'])} 条\n")
 
     # ── DataCollator ──────────────────────────────────────────────────────
-    # labels 已在 build_dataset 中预计算（prompt 部分为 -100），
-    # 此处只需要带 padding 的标准 collator。
-    # label_pad_token_id=-100 确保 padding 位置不参与 loss 计算。
-    data_collator = DataCollatorForSeq2Seq(
-        tokenizer=tokenizer,
-        model=model,
-        padding=True,
-        pad_to_multiple_of=8,
-        label_pad_token_id=-100,
-    )
+    # labels 已在 build_dataset 中预计算（prompt 部分为 -100）。
+    # 使用自定义 collator 而非 DataCollatorForSeq2Seq，避免其 seq2seq 专属行为
+    # （如 decoder_input_ids 创建、label/input 长度不一致处理）干扰 causal LM 训练。
+    pad_id = tokenizer.pad_token_id or tokenizer.eos_token_id
+
+    def collate_fn(features: list[dict]) -> dict[str, torch.Tensor]:
+        input_ids = [torch.tensor(f["input_ids"], dtype=torch.long) for f in features]
+        labels    = [torch.tensor(f["labels"],    dtype=torch.long) for f in features]
+        input_ids_padded = pad_sequence(input_ids, batch_first=True, padding_value=pad_id)
+        labels_padded    = pad_sequence(labels,    batch_first=True, padding_value=-100)
+        attention_mask   = (input_ids_padded != pad_id).long()
+        return {
+            "input_ids":      input_ids_padded,
+            "attention_mask": attention_mask,
+            "labels":         labels_padded,
+        }
 
     # ── Trainer ───────────────────────────────────────────────────────────
     trainer = Trainer(
@@ -243,7 +268,7 @@ def train(
         tokenizer=tokenizer,
         train_dataset=dataset["train"],
         eval_dataset=dataset["validation"],
-        data_collator=data_collator,
+        data_collator=collate_fn,
         args=TrainingArguments(
             # 基础设置
             output_dir=str(output_dir),
